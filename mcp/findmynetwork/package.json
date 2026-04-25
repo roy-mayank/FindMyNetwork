@@ -1,0 +1,5 @@
+{
+  "name": "findmynetwork-mcp",
+  "private": true,
+  "description": "stdio MCP server for FindMyNetwork; run via repo root: npx tsx mcp/findmynetwork/src/index.ts"
+}
