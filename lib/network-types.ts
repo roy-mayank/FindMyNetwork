@@ -29,8 +29,27 @@ export type PersonNetworkNode = BaseNetworkNode & {
   linkedinUrl?: string;
   alumniUrl?: string;
   notes?: string;
+  email?: string;
+  secondaryEmail?: string;
+  directoryProfileUrl?: string;
+  verificationStatus?: "unverified" | "verified" | "bounced" | "unknown";
+  sourceUrl?: string;
+  sourceType?: string;
+  confidence?: number;
+  rawExtract?: string;
+  lastAttemptAt?: string;
   lastOutreachAt?: string;
   enrichmentStatus?: "none" | "pending" | "enriched" | "error";
+};
+
+export type EmailDraft = {
+  id: string;
+  personId: string;
+  draftType: "short" | "detailed" | "follow_up";
+  subject: string;
+  body: string;
+  profileVersion?: string;
+  createdAt: string;
 };
 
 export type NetworkNode =

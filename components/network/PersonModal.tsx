@@ -3,10 +3,14 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import {
+  applyProposalAction,
   applyLatestProposalAction,
+  generateEmailDraftsAction,
+  listEmailDraftsAction,
   listPendingProposalsAction,
+  rejectProposalAction,
 } from "@/app/actions/network";
-import type { NetworkNode } from "@/lib/network-types";
+import type { EmailDraft, NetworkNode } from "@/lib/network-types";
 
 type PersonModalProps = {
   node: NetworkNode | null;
@@ -30,6 +34,18 @@ export function PersonModal({
 }: PersonModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [pendingCount, setPendingCount] = useState(0);
+  const [proposals, setProposals] = useState<
+    { id: string; createdAt: string; evidenceUrls: string[] }[]
+  >([]);
+  const [drafts, setDrafts] = useState<EmailDraft[]>([]);
+  const [directoryForm, setDirectoryForm] = useState({
+    email: "",
+    secondaryEmail: "",
+    directoryProfileUrl: "",
+    verificationStatus: "unverified",
+    notes: "",
+    evidenceUrls: "",
+  });
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -53,9 +69,27 @@ export function PersonModal({
       void (async () => {
         try {
           const rows = await listPendingProposalsAction(node.id);
-          if (!cancelled) setPendingCount(rows.length);
+          if (!cancelled) {
+            setPendingCount(rows.length);
+            setProposals(
+              rows.map((row) => ({
+                id: row.id,
+                createdAt: row.createdAt,
+                evidenceUrls: row.evidenceUrls,
+              })),
+            );
+          }
         } catch {
-          if (!cancelled) setPendingCount(0);
+          if (!cancelled) {
+            setPendingCount(0);
+            setProposals([]);
+          }
+        }
+        try {
+          const rows = await listEmailDraftsAction(node.id);
+          if (!cancelled) setDrafts(rows);
+        } catch {
+          if (!cancelled) setDrafts([]);
         }
       })();
     });
@@ -80,6 +114,14 @@ export function PersonModal({
   const linkedin =
     isPerson && node.linkedinUrl ? node.linkedinUrl.trim() : "";
   const alumni = isPerson && node.alumniUrl ? node.alumniUrl.trim() : "";
+  const hasReachInfo =
+    isPerson &&
+    (Boolean(node.lastOutreachAt) ||
+      Boolean(node.lastAttemptAt) ||
+      Boolean(node.notes) ||
+      Boolean(node.email) ||
+      Boolean(node.secondaryEmail) ||
+      Boolean(node.directoryProfileUrl));
 
   return (
     <div
@@ -162,6 +204,13 @@ export function PersonModal({
                         }
                         const rows = await listPendingProposalsAction(node.id);
                         setPendingCount(rows.length);
+                        setProposals(
+                          rows.map((row) => ({
+                            id: row.id,
+                            createdAt: row.createdAt,
+                            evidenceUrls: row.evidenceUrls,
+                          })),
+                        );
                         onNetworkUpdated?.();
                       } catch (e) {
                         setActionError(
@@ -183,6 +232,13 @@ export function PersonModal({
                       try {
                         const rows = await listPendingProposalsAction(node.id);
                         setPendingCount(rows.length);
+                        setProposals(
+                          rows.map((row) => ({
+                            id: row.id,
+                            createdAt: row.createdAt,
+                            evidenceUrls: row.evidenceUrls,
+                          })),
+                        );
                       } catch (e) {
                         setActionError(
                           e instanceof Error ? e.message : "Refresh failed",
@@ -194,13 +250,320 @@ export function PersonModal({
                 >
                   Refresh pending count
                 </button>
+                <button
+                  type="button"
+                  disabled={isPending || proposals.length === 0}
+                  onClick={() => {
+                    const latest = proposals[0];
+                    if (!latest) return;
+                    setActionError(null);
+                    startTransition(async () => {
+                      try {
+                        await rejectProposalAction(latest.id);
+                        const rows = await listPendingProposalsAction(node.id);
+                        setPendingCount(rows.length);
+                        setProposals(
+                          rows.map((row) => ({
+                            id: row.id,
+                            createdAt: row.createdAt,
+                            evidenceUrls: row.evidenceUrls,
+                          })),
+                        );
+                      } catch (e) {
+                        setActionError(
+                          e instanceof Error ? e.message : "Reject failed",
+                        );
+                      }
+                    });
+                  }}
+                  className="rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-700 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-950/30"
+                >
+                  Reject latest proposal
+                </button>
               </div>
+              {proposals.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {proposals.slice(0, 3).map((proposal) => (
+                    <div
+                      key={proposal.id}
+                      className="rounded-lg border border-zinc-200 bg-white p-2 text-[11px] dark:border-zinc-700 dark:bg-zinc-900/60"
+                    >
+                      <p className="font-medium text-zinc-700 dark:text-zinc-200">
+                        Proposal {proposal.id.slice(0, 8)} - {proposal.createdAt}
+                      </p>
+                      <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+                        Evidence URLs: {proposal.evidenceUrls.length}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          setActionError(null);
+                          startTransition(async () => {
+                            try {
+                              await applyProposalAction(proposal.id);
+                              const rows = await listPendingProposalsAction(node.id);
+                              setPendingCount(rows.length);
+                              setProposals(
+                                rows.map((row) => ({
+                                  id: row.id,
+                                  createdAt: row.createdAt,
+                                  evidenceUrls: row.evidenceUrls,
+                                })),
+                              );
+                              onNetworkUpdated?.();
+                            } catch (e) {
+                              setActionError(
+                                e instanceof Error ? e.message : "Apply failed",
+                              );
+                            }
+                          });
+                        }}
+                        className="mt-2 rounded-md bg-amber-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        Apply this proposal
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <p className="mt-3 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                 MCP tools <code className="rounded bg-zinc-200/80 px-1 dark:bg-zinc-700">propose_network_patch</code>{" "}
                 and <code className="rounded bg-zinc-200/80 px-1 dark:bg-zinc-700">apply_network_patch</code> use the
                 same API as this app. Apply merges the newest pending proposal created for this person.
               </p>
             </div>
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/60">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                University directory enrichment
+              </p>
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input
+                  type="email"
+                  placeholder="Primary email"
+                  value={directoryForm.email}
+                  onChange={(e) =>
+                    setDirectoryForm((current) => ({ ...current, email: e.target.value }))
+                  }
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+                />
+                <input
+                  type="email"
+                  placeholder="Secondary email"
+                  value={directoryForm.secondaryEmail}
+                  onChange={(e) =>
+                    setDirectoryForm((current) => ({
+                      ...current,
+                      secondaryEmail: e.target.value,
+                    }))
+                  }
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+                />
+                <input
+                  type="url"
+                  placeholder="Directory profile URL"
+                  value={directoryForm.directoryProfileUrl}
+                  onChange={(e) =>
+                    setDirectoryForm((current) => ({
+                      ...current,
+                      directoryProfileUrl: e.target.value,
+                    }))
+                  }
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+                />
+                <select
+                  value={directoryForm.verificationStatus}
+                  onChange={(e) =>
+                    setDirectoryForm((current) => ({
+                      ...current,
+                      verificationStatus: e.target.value,
+                    }))
+                  }
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+                >
+                  <option value="unverified">unverified</option>
+                  <option value="verified">verified</option>
+                  <option value="bounced">bounced</option>
+                  <option value="unknown">unknown</option>
+                </select>
+              </div>
+              <textarea
+                rows={2}
+                placeholder="Directory notes"
+                value={directoryForm.notes}
+                onChange={(e) =>
+                  setDirectoryForm((current) => ({ ...current, notes: e.target.value }))
+                }
+                className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+              />
+              <input
+                placeholder="Evidence URLs (comma-separated)"
+                value={directoryForm.evidenceUrls}
+                onChange={(e) =>
+                  setDirectoryForm((current) => ({
+                    ...current,
+                    evidenceUrls: e.target.value,
+                  }))
+                }
+                className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs dark:border-zinc-600 dark:bg-zinc-900"
+              />
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  setActionError(null);
+                  startTransition(async () => {
+                    try {
+                      const evidenceUrls = directoryForm.evidenceUrls
+                        .split(",")
+                        .map((item) => item.trim())
+                        .filter(Boolean);
+                      const res = await fetch("/api/network/enrich-directory", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          personId: node.id,
+                          email: directoryForm.email,
+                          secondaryEmail: directoryForm.secondaryEmail,
+                          directoryProfileUrl: directoryForm.directoryProfileUrl,
+                          verificationStatus: directoryForm.verificationStatus,
+                          notes: directoryForm.notes,
+                          evidenceUrls,
+                        }),
+                      });
+                      if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(text || `HTTP ${res.status}`);
+                      }
+                      const rows = await listPendingProposalsAction(node.id);
+                      setPendingCount(rows.length);
+                      setProposals(
+                        rows.map((row) => ({
+                          id: row.id,
+                          createdAt: row.createdAt,
+                          evidenceUrls: row.evidenceUrls,
+                        })),
+                      );
+                    } catch (e) {
+                      setActionError(
+                        e instanceof Error ? e.message : "Create proposal failed",
+                      );
+                    }
+                  });
+                }}
+                className="mt-2 rounded-lg bg-sky-600 px-3 py-2 text-xs font-medium text-white hover:bg-sky-700 disabled:opacity-50"
+              >
+                Create contact proposal
+              </button>
+            </div>
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/60">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                Outreach drafts
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => {
+                    setActionError(null);
+                    startTransition(async () => {
+                      try {
+                        const rows = await generateEmailDraftsAction(node.id);
+                        setDrafts(rows);
+                      } catch (e) {
+                        setActionError(
+                          e instanceof Error ? e.message : "Draft generation failed",
+                        );
+                      }
+                    });
+                  }}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {isPending ? "Working..." : "Generate drafts"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={() => {
+                    startTransition(async () => {
+                      const rows = await listEmailDraftsAction(node.id);
+                      setDrafts(rows);
+                    });
+                  }}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Refresh drafts
+                </button>
+              </div>
+              {drafts.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {drafts.slice(0, 3).map((draft) => (
+                    <div
+                      key={draft.id}
+                      className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900/60"
+                    >
+                      <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100">
+                        {draft.draftType.replace("_", " ")} - {draft.subject}
+                      </p>
+                      <p className="mt-1 line-clamp-4 text-xs whitespace-pre-wrap text-zinc-600 dark:text-zinc-300">
+                        {draft.body}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  No drafts yet. Generate to create short, detailed, and follow-up versions.
+                </p>
+              )}
+            </div>
+            {hasReachInfo ? (
+              <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/70">
+                <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                  Reach tracking
+                </p>
+                {node.lastOutreachAt ? (
+                  <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+                    <span className="font-medium">Last reached:</span>{" "}
+                    {node.lastOutreachAt}
+                  </p>
+                ) : null}
+                {node.lastAttemptAt ? (
+                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
+                    <span className="font-medium">Last attempt:</span>{" "}
+                    {node.lastAttemptAt}
+                  </p>
+                ) : null}
+                {node.notes ? (
+                  <p className="mt-2 text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-200">
+                    <span className="font-medium">Notes:</span> {node.notes}
+                  </p>
+                ) : null}
+                {node.email ? (
+                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
+                    <span className="font-medium">Email:</span> {node.email}
+                  </p>
+                ) : null}
+                {node.secondaryEmail ? (
+                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
+                    <span className="font-medium">Secondary email:</span> {node.secondaryEmail}
+                  </p>
+                ) : null}
+                {node.directoryProfileUrl ? (
+                  <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
+                    <span className="font-medium">Directory profile:</span>{" "}
+                    <a
+                      href={node.directoryProfileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline"
+                    >
+                      Open
+                    </a>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-3 sm:flex-row">
             {linkedin ? (

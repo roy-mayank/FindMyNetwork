@@ -69,6 +69,15 @@ export const personProfile = sqliteTable("person_profile", {
     .primaryKey()
     .references(() => nodes.id, { onDelete: "cascade" }),
   notes: text("notes"),
+  email: text("email"),
+  secondaryEmail: text("secondary_email"),
+  directoryProfileUrl: text("directory_profile_url"),
+  verificationStatus: text("verification_status", {
+    enum: ["unverified", "verified", "bounced", "unknown"],
+  })
+    .notNull()
+    .default("unknown"),
+  lastAttemptAt: text("last_attempt_at"),
   lastOutreachAt: text("last_outreach_at"),
   enrichmentStatus: text("enrichment_status", {
     enum: ["none", "pending", "enriched", "error"],
@@ -94,4 +103,25 @@ export const enrichmentProposals = sqliteTable(
       .default(sql`(datetime('now'))`),
   },
   (t) => [index("enrichment_proposals_person_idx").on(t.personId)],
+);
+
+export const emailDrafts = sqliteTable(
+  "email_drafts",
+  {
+    id: text("id").primaryKey(),
+    personId: text("person_id")
+      .notNull()
+      .references(() => nodes.id, { onDelete: "cascade" }),
+    draftType: text("draft_type", {
+      enum: ["short", "detailed", "follow_up"],
+    }).notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    profileVersion: text("profile_version"),
+    promptContextJson: text("prompt_context_json"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (t) => [index("email_drafts_person_idx").on(t.personId)],
 );

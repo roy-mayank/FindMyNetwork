@@ -4,13 +4,19 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 
 import {
   companyProfile,
+  emailDrafts,
   edges,
   enrichmentProposals,
   fundingRounds,
   nodes,
   personProfile,
 } from "@/db/schema";
-import type { NetworkData, NetworkEdge, NetworkNode } from "@/lib/network-types";
+import type {
+  EmailDraft,
+  NetworkData,
+  NetworkEdge,
+  NetworkNode,
+} from "@/lib/network-types";
 import type { NetworkPatchInput } from "@/lib/network-patch-schema";
 import type * as schema from "@/db/schema";
 
@@ -95,6 +101,14 @@ function rowToNetworkNode(
     typeof payload.linkedinUrl === "string" ? payload.linkedinUrl : undefined;
   const alumniUrl =
     typeof payload.alumniUrl === "string" ? payload.alumniUrl : undefined;
+  const sourceUrl =
+    typeof payload.sourceUrl === "string" ? payload.sourceUrl : undefined;
+  const sourceType =
+    typeof payload.sourceType === "string" ? payload.sourceType : undefined;
+  const rawExtract =
+    typeof payload.rawExtract === "string" ? payload.rawExtract : undefined;
+  const confidence =
+    typeof payload.confidence === "number" ? payload.confidence : undefined;
   return {
     id: row.id,
     kind: "person",
@@ -103,6 +117,15 @@ function rowToNetworkNode(
     linkedinUrl,
     alumniUrl,
     notes: extras.person?.notes ?? undefined,
+    email: extras.person?.email ?? undefined,
+    secondaryEmail: extras.person?.secondaryEmail ?? undefined,
+    directoryProfileUrl: extras.person?.directoryProfileUrl ?? undefined,
+    verificationStatus: extras.person?.verificationStatus ?? undefined,
+    sourceUrl,
+    sourceType,
+    rawExtract,
+    confidence,
+    lastAttemptAt: extras.person?.lastAttemptAt ?? undefined,
     lastOutreachAt: extras.person?.lastOutreachAt ?? undefined,
     enrichmentStatus: extras.person?.enrichmentStatus ?? undefined,
   };
@@ -256,6 +279,23 @@ export function applyNetworkPatch(db: Db, patch: NetworkPatchInput): void {
           .limit(1)
           .all()[0];
         const notes = p.notes !== undefined ? p.notes : (existing?.notes ?? null);
+        const email = p.email !== undefined ? p.email : (existing?.email ?? null);
+        const secondaryEmail =
+          p.secondaryEmail !== undefined
+            ? p.secondaryEmail
+            : (existing?.secondaryEmail ?? null);
+        const directoryProfileUrl =
+          p.directoryProfileUrl !== undefined
+            ? p.directoryProfileUrl
+            : (existing?.directoryProfileUrl ?? null);
+        const verificationStatus =
+          p.verificationStatus !== undefined
+            ? p.verificationStatus
+            : (existing?.verificationStatus ?? "unknown");
+        const lastAttemptAt =
+          p.lastAttemptAt !== undefined
+            ? p.lastAttemptAt
+            : (existing?.lastAttemptAt ?? null);
         const lastOutreachAt =
           p.lastOutreachAt !== undefined
             ? p.lastOutreachAt
@@ -268,12 +308,26 @@ export function applyNetworkPatch(db: Db, patch: NetworkPatchInput): void {
           .values({
             personId: p.personId,
             notes,
+            email,
+            secondaryEmail,
+            directoryProfileUrl,
+            verificationStatus,
+            lastAttemptAt,
             lastOutreachAt,
             enrichmentStatus,
           })
           .onConflictDoUpdate({
             target: personProfile.personId,
-            set: { notes, lastOutreachAt, enrichmentStatus },
+            set: {
+              notes,
+              email,
+              secondaryEmail,
+              directoryProfileUrl,
+              verificationStatus,
+              lastAttemptAt,
+              lastOutreachAt,
+              enrichmentStatus,
+            },
           })
           .run();
       }
@@ -330,10 +384,71 @@ export async function applyEnrichmentProposalById(db: Db, proposalId: string) {
     .where(eq(enrichmentProposals.id, proposalId));
 }
 
+export async function rejectEnrichmentProposalById(db: Db, proposalId: string) {
+  const [row] = await db
+    .select()
+    .from(enrichmentProposals)
+    .where(eq(enrichmentProposals.id, proposalId))
+    .limit(1);
+  if (!row) throw new Error("Proposal not found");
+  if (row.status !== "pending") throw new Error("Proposal is not pending");
+  await db
+    .update(enrichmentProposals)
+    .set({ status: "rejected" })
+    .where(eq(enrichmentProposals.id, proposalId));
+}
+
 export async function applyLatestPendingProposalForPerson(db: Db, personId: string) {
   const pending = await listPendingProposalsForPerson(db, personId);
   const latest = pending[0];
   if (!latest) return { applied: false as const };
   await applyEnrichmentProposalById(db, latest.id);
   return { applied: true as const, proposalId: latest.id };
+}
+
+export async function listEmailDraftsForPerson(
+  db: Db,
+  personId: string,
+): Promise<EmailDraft[]> {
+  const rows = await db
+    .select()
+    .from(emailDrafts)
+    .where(eq(emailDrafts.personId, personId))
+    .orderBy(desc(emailDrafts.createdAt));
+  return rows.map((row) => ({
+    id: row.id,
+    personId: row.personId,
+    draftType: row.draftType,
+    subject: row.subject,
+    body: row.body,
+    profileVersion: row.profileVersion ?? undefined,
+    createdAt: row.createdAt,
+  }));
+}
+
+export async function replaceEmailDraftsForPerson(
+  db: Db,
+  personId: string,
+  drafts: {
+    draftType: "short" | "detailed" | "follow_up";
+    subject: string;
+    body: string;
+    profileVersion?: string;
+    promptContext?: Record<string, unknown>;
+  }[],
+) {
+  await db.delete(emailDrafts).where(eq(emailDrafts.personId, personId));
+  for (const draft of drafts) {
+    await db.insert(emailDrafts).values({
+      id: crypto.randomUUID(),
+      personId,
+      draftType: draft.draftType,
+      subject: draft.subject,
+      body: draft.body,
+      profileVersion: draft.profileVersion ?? null,
+      promptContextJson: draft.promptContext
+        ? JSON.stringify(draft.promptContext)
+        : null,
+    });
+  }
 }

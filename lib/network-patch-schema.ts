@@ -21,6 +21,13 @@ export const enrichmentStatusSchema = z.enum([
   "error",
 ]);
 
+export const verificationStatusSchema = z.enum([
+  "unverified",
+  "verified",
+  "bounced",
+  "unknown",
+]);
+
 export const proposalStatusSchema = z.enum(["pending", "applied", "rejected"]);
 
 const payloadRecord = z.record(z.string(), z.any());
@@ -60,6 +67,11 @@ export const fundingRoundPatchSchema = z.object({
 export const personProfilePatchSchema = z.object({
   personId: z.string().min(1),
   notes: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+  secondaryEmail: z.string().nullable().optional(),
+  directoryProfileUrl: z.string().nullable().optional(),
+  verificationStatus: verificationStatusSchema.optional(),
+  lastAttemptAt: z.string().nullable().optional(),
   lastOutreachAt: z.string().nullable().optional(),
   enrichmentStatus: enrichmentStatusSchema.optional(),
 });

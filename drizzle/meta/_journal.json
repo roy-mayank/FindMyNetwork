@@ -8,6 +8,55 @@
       "when": 1777079089306,
       "tag": "0000_left_jocasta",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1777173200000,
+      "tag": "0001_add_person_last_attempt",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777173600000,
+      "tag": "0002_add_person_email",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1777173601000,
+      "tag": "0003_add_person_secondary_email",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1777173602000,
+      "tag": "0004_add_person_directory_profile_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1777173603000,
+      "tag": "0005_add_person_verification_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1777173604000,
+      "tag": "0006_create_email_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1777173605000,
+      "tag": "0007_email_drafts_person_idx",
+      "breakpoints": true
     }
   ]
 }

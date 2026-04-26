@@ -84,6 +84,84 @@ mcpServer.registerTool(
 );
 
 mcpServer.registerTool(
+  "ingest_network_lead",
+  {
+    description:
+      "Create a person or company node discovered while browsing (supports source metadata and reach fields).",
+    inputSchema: {
+      leadJson: z
+        .string()
+        .min(1)
+        .describe("Stringified JSON body for POST /api/network/manual"),
+    },
+  },
+  async ({ leadJson }) => {
+    let body: string;
+    try {
+      body = JSON.stringify(JSON.parse(leadJson));
+    } catch {
+      throw new Error("leadJson must be valid JSON.");
+    }
+    const result = await authJson("/api/network/manual", {
+      method: "POST",
+      body,
+    });
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+mcpServer.registerTool(
+  "propose_directory_enrichment",
+  {
+    description:
+      "Submit university directory/email enrichment for a person as a pending proposal.",
+    inputSchema: {
+      enrichmentJson: z
+        .string()
+        .min(1)
+        .describe("Stringified JSON body for POST /api/network/enrich-directory"),
+    },
+  },
+  async ({ enrichmentJson }) => {
+    let body: string;
+    try {
+      body = JSON.stringify(JSON.parse(enrichmentJson));
+    } catch {
+      throw new Error("enrichmentJson must be valid JSON.");
+    }
+    const result = await authJson("/api/network/enrich-directory", {
+      method: "POST",
+      body,
+    });
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+mcpServer.registerTool(
+  "generate_person_email_drafts",
+  {
+    description:
+      "Generate short, detailed, and follow-up outreach drafts for a person based on profile doc + graph context.",
+    inputSchema: {
+      personId: z.string().min(1),
+    },
+  },
+  async ({ personId }) => {
+    const result = await authJson(
+      `/api/network/person/${encodeURIComponent(personId)}/drafts/generate`,
+      { method: "POST" },
+    );
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(result, null, 2) }],
+    };
+  },
+);
+
+mcpServer.registerTool(
   "apply_network_patch",
   {
     description:
