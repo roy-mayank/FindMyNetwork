@@ -10,6 +10,8 @@ const kindClass: Record<FlowNodePayload["kind"], string> = {
   company: "border-sky-500/80 bg-sky-700 text-white dark:bg-sky-900",
   person:
     "border-zinc-400 bg-zinc-100 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
+  cluster:
+    "border-amber-500/80 bg-amber-100 text-amber-950 dark:border-amber-500 dark:bg-amber-950/50 dark:text-amber-100",
 };
 
 export function GraphNode(props: NodeProps) {
@@ -19,6 +21,10 @@ export function GraphNode(props: NodeProps) {
   const subtitle =
     data.kind === "entity" || data.kind === "company"
       ? data.subtitle
+      : undefined;
+  const clusterMeta =
+    data.kind === "cluster"
+      ? `${data.groupBy} cluster`
       : undefined;
 
   return (
@@ -35,6 +41,11 @@ export function GraphNode(props: NodeProps) {
         className="!size-2 !border-0 !bg-white/40"
       />
       <div className="leading-snug">{data.label}</div>
+      {data.kind === "cluster" ? (
+        <div className="mt-1 text-[11px] font-normal opacity-85">
+          {data.count} members
+        </div>
+      ) : null}
       {data.kind === "person" && data.title ? (
         <div className="mt-1 line-clamp-2 text-[11px] font-normal opacity-85">
           {data.title}
@@ -42,6 +53,9 @@ export function GraphNode(props: NodeProps) {
       ) : null}
       {subtitle ? (
         <div className="mt-1 text-[11px] font-normal opacity-80">{subtitle}</div>
+      ) : null}
+      {clusterMeta ? (
+        <div className="mt-1 text-[11px] font-normal opacity-80">{clusterMeta}</div>
       ) : null}
       <Handle
         type="source"

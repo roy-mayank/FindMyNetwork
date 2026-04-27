@@ -1,10 +1,20 @@
+import Link from "next/link";
+
 import { NetworkHome } from "@/components/network/NetworkHome";
 
 export default function Home() {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
       <header className="border-b border-zinc-200 bg-white/80 px-6 py-5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-        <h1 className="text-2xl font-semibold tracking-tight">FindMyNetwork</h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">FindMyNetwork</h1>
+          <Link
+            href="/outreach"
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            Quick outreach
+          </Link>
+        </div>
         <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
           You sit in the center; universities and companies branch out; people
           cluster on companies. Pan and zoom the graph, click any node for

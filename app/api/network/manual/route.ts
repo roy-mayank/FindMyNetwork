@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { getDb } from "@/db/index";
@@ -15,6 +15,7 @@ const baseSchema = z.object({
 
 const companyInputSchema = baseSchema.extend({
   kind: z.literal("company"),
+  industry: z.string().min(1, "Industry is required"),
   subtitle: z.string().optional(),
   website: z.string().url("Website must be a valid URL").optional().or(z.literal("")),
   connectToId: z.string().min(1).optional(),
@@ -43,6 +44,10 @@ const manualNodeSchema = z.discriminatedUnion("kind", [
   companyInputSchema,
   personInputSchema,
 ]);
+const manualDeleteSchema = z.object({
+  id: z.string().min(1, "Node id is required"),
+  kind: z.enum(["company", "person"]),
+});
 
 const trimOrUndefined = (value?: string) => {
   const v = value?.trim();
@@ -54,7 +59,7 @@ const trimOrNull = (value?: string) => {
   return v ? v : null;
 };
 
-function buildNodeId(prefix: "co" | "p") {
+function buildNodeId(prefix: "co" | "p" | "ent") {
   const token = crypto.randomUUID().replace(/-/g, "").slice(0, 10);
   return `${prefix}-${token}`;
 }
@@ -78,8 +83,25 @@ export async function POST(request: Request) {
   try {
     if (input.kind === "company") {
       const nodeId = buildNodeId("co");
+      const industryLabel = input.industry.trim();
+      const [existingIndustry] = await db
+        .select({ id: nodes.id })
+        .from(nodes)
+        .where(and(eq(nodes.kind, "entity"), eq(nodes.label, industryLabel)))
+        .limit(1);
+      const industryId = existingIndustry?.id ?? buildNodeId("ent");
       applyNetworkPatch(db, {
         nodes: [
+          ...(existingIndustry
+            ? []
+            : [
+                {
+                  id: industryId,
+                  kind: "entity" as const,
+                  label: industryLabel,
+                  payload: {},
+                },
+              ]),
           {
             id: nodeId,
             kind: "company",
@@ -94,7 +116,16 @@ export async function POST(request: Request) {
             },
           },
         ],
-        edges: [{ source: input.connectToId ?? "me", target: nodeId }],
+        edges: [
+          {
+            source: input.connectToId ?? "me",
+            target: industryId,
+          },
+          {
+            source: industryId,
+            target: nodeId,
+          },
+        ],
         companyProfiles: [
           {
             companyId: nodeId,
@@ -147,6 +178,45 @@ export async function POST(request: Request) {
   } catch (e) {
     return Response.json(
       { error: e instanceof Error ? e.message : "Failed to add node" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: Request) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const parsed = manualDeleteSchema.safeParse(body);
+  if (!parsed.success) {
+    return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const db = getDb();
+  const { id, kind } = parsed.data;
+
+  try {
+    const [row] = await db
+      .select({ id: nodes.id, kind: nodes.kind })
+      .from(nodes)
+      .where(eq(nodes.id, id))
+      .limit(1);
+    if (!row) {
+      return Response.json({ error: "Node not found" }, { status: 404 });
+    }
+    if (row.kind !== kind) {
+      return Response.json({ error: "Node kind mismatch" }, { status: 400 });
+    }
+
+    applyNetworkPatch(db, { deleteNodeIds: [id] });
+    return Response.json({ ok: true });
+  } catch (e) {
+    return Response.json(
+      { error: e instanceof Error ? e.message : "Failed to delete node" },
       { status: 500 },
     );
   }

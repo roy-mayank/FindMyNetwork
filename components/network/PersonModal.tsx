@@ -10,20 +10,21 @@ import {
   listPendingProposalsAction,
   rejectProposalAction,
 } from "@/app/actions/network";
-import type { EmailDraft, NetworkNode } from "@/lib/network-types";
+import type { EmailDraft, FlowNodePayload } from "@/lib/network-types";
 
 type PersonModalProps = {
-  node: NetworkNode | null;
+  node: FlowNodePayload | null;
   open: boolean;
   onClose: () => void;
   onNetworkUpdated?: () => void;
 };
 
-const kindLabel: Record<NetworkNode["kind"], string> = {
+const kindLabel: Record<FlowNodePayload["kind"], string> = {
   me: "You",
   entity: "Place / org",
   company: "Company",
   person: "Person",
+  cluster: "Cluster",
 };
 
 export function PersonModal({
@@ -111,6 +112,7 @@ export function PersonModal({
   if (!open || !node) return null;
 
   const isPerson = node.kind === "person";
+  const isCluster = node.kind === "cluster";
   const linkedin =
     isPerson && node.linkedinUrl ? node.linkedinUrl.trim() : "";
   const alumni = isPerson && node.alumniUrl ? node.alumniUrl.trim() : "";
@@ -122,6 +124,7 @@ export function PersonModal({
       Boolean(node.email) ||
       Boolean(node.secondaryEmail) ||
       Boolean(node.directoryProfileUrl));
+  const canDelete = node.kind === "person" || node.kind === "company";
 
   return (
     <div
@@ -140,7 +143,7 @@ export function PersonModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="network-node-title"
-        className="relative z-10 w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+        className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -566,32 +569,62 @@ export function PersonModal({
             ) : null}
 
             <div className="flex flex-col gap-3 sm:flex-row">
-            {linkedin ? (
-              <a
-                href={linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#0A66C2] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#004182]"
-              >
-                LinkedIn
-              </a>
-            ) : null}
-            {alumni ? (
-              <a
-                href={alumni}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex flex-1 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
-              >
-                Alumni link
-              </a>
-            ) : null}
-            {!linkedin && !alumni ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Add `linkedinUrl` and `alumniUrl` on this person in your data
-                file.
+              {linkedin ? (
+                <a
+                  href={linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex flex-1 items-center justify-center rounded-xl bg-[#0A66C2] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#004182]"
+                >
+                  LinkedIn
+                </a>
+              ) : null}
+              {alumni ? (
+                <a
+                  href={alumni}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex flex-1 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+                >
+                  Alumni link
+                </a>
+              ) : null}
+              {!linkedin && !alumni ? (
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  Add `linkedinUrl` and `alumniUrl` on this person in your data
+                  file.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : isCluster ? (
+          <div className="mt-6 space-y-3">
+            <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/60">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                Cluster summary
               </p>
-            ) : null}
+              <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
+                Grouping: <span className="font-medium">{node.groupBy}</span>
+              </p>
+              <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
+                Members: <span className="font-medium">{node.count}</span>
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900/70">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+                Sample members
+              </p>
+              {node.memberLabels.length > 0 ? (
+                <ul className="mt-2 space-y-1 text-sm text-zinc-700 dark:text-zinc-200">
+                  {node.memberLabels.map((label, index) => (
+                    <li key={`${label}-${index}`}>- {label}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+                  No member labels available.
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -604,6 +637,48 @@ export function PersonModal({
             .
           </p>
         )}
+
+        {canDelete ? (
+          <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+              Danger zone
+            </p>
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={() => {
+                const targetLabel = node.kind === "person" ? "person" : "company";
+                const ok = window.confirm(
+                  `Delete this ${targetLabel}? This cannot be undone.`,
+                );
+                if (!ok) return;
+                setActionError(null);
+                startTransition(async () => {
+                  try {
+                    const res = await fetch("/api/network/manual", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: node.id, kind: node.kind }),
+                    });
+                    if (!res.ok) {
+                      const text = await res.text();
+                      throw new Error(text || `HTTP ${res.status}`);
+                    }
+                    onClose();
+                    onNetworkUpdated?.();
+                  } catch (e) {
+                    setActionError(
+                      e instanceof Error ? e.message : "Delete failed",
+                    );
+                  }
+                });
+              }}
+              className="mt-2 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-700 dark:bg-zinc-900 dark:text-red-300 dark:hover:bg-red-950/30"
+            >
+              {isPending ? "Deleting..." : `Delete ${node.kind}`}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

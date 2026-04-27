@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { NetworkCanvas } from "@/components/network/NetworkCanvas";
-import type { NetworkData } from "@/lib/network-types";
+import type { ClusterGroupBy, NetworkData } from "@/lib/network-types";
 
 export function NetworkHome() {
   const [data, setData] = useState<NetworkData | null>(null);
@@ -12,8 +12,11 @@ export function NetworkHome() {
   const [kind, setKind] = useState<"company" | "person">("person");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [clustered, setClustered] = useState(true);
+  const [groupBy, setGroupBy] = useState<ClusterGroupBy>("industry");
   const [form, setForm] = useState({
     label: "",
+    industry: "",
     subtitle: "",
     website: "",
     companyId: "",
@@ -89,7 +92,33 @@ export function NetworkHome() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setClustered((current) => !current)}
+            className={`rounded-lg px-3 py-2 text-xs font-medium ${
+              clustered
+                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            }`}
+          >
+            Clustering: {clustered ? "On" : "Off"}
+          </button>
+          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+            Group by
+            <select
+              value={groupBy}
+              disabled={!clustered}
+              onChange={(e) => setGroupBy(e.target.value as ClusterGroupBy)}
+              className="ml-2 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-xs disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800"
+            >
+              <option value="industry">Industry</option>
+              <option value="company">Company</option>
+              <option value="outreach">Outreach recency</option>
+            </select>
+          </label>
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -101,7 +130,12 @@ export function NetworkHome() {
           Add item
         </button>
       </div>
-      <NetworkCanvas data={data} onNetworkUpdated={() => void load()} />
+      <NetworkCanvas
+        data={data}
+        clustered={clustered}
+        groupBy={groupBy}
+        onNetworkUpdated={() => void load()}
+      />
 
       {addOpen ? (
         <div
@@ -152,6 +186,7 @@ export function NetworkHome() {
                       ? {
                           kind,
                           label: form.label,
+                          industry: form.industry,
                           subtitle: form.subtitle,
                           website: form.website,
                           sourceUrl: form.sourceUrl,
@@ -185,6 +220,7 @@ export function NetworkHome() {
                   }
                   setForm({
                     label: "",
+                    industry: "",
                     subtitle: "",
                     website: "",
                     companyId: companies[0]?.id ?? "",
@@ -240,6 +276,20 @@ export function NetworkHome() {
 
               {kind === "company" ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+                    Industry
+                    <input
+                      required
+                      value={form.industry}
+                      onChange={(e) =>
+                        setForm((current) => ({
+                          ...current,
+                          industry: e.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+                    />
+                  </label>
                   <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
                     Subtitle
                     <input

@@ -4,7 +4,6 @@ import "@xyflow/react/dist/style.css";
 
 import { useCallback, useMemo, useState } from "react";
 import {
-  applyNodeChanges,
   Background,
   BackgroundVariant,
   Controls,
@@ -15,7 +14,7 @@ import {
 } from "@xyflow/react";
 
 import { buildReactFlowElements } from "@/lib/graph-layout";
-import type { NetworkData, NetworkNode } from "@/lib/network-types";
+import type { ClusterGroupBy, FlowNodePayload, NetworkData } from "@/lib/network-types";
 import { GraphNode } from "@/components/network/nodes/GraphNode";
 import { PersonModal } from "@/components/network/PersonModal";
 
@@ -24,30 +23,33 @@ const nodeTypes = { network: GraphNode } satisfies NodeTypes;
 type NetworkCanvasProps = {
   data: NetworkData;
   onNetworkUpdated?: () => void;
+  clustered: boolean;
+  groupBy: ClusterGroupBy;
 };
 
-export function NetworkCanvas({ data, onNetworkUpdated }: NetworkCanvasProps) {
+export function NetworkCanvas({
+  data,
+  onNetworkUpdated,
+  clustered,
+  groupBy,
+}: NetworkCanvasProps) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => buildReactFlowElements(data),
-    [data],
+    () => buildReactFlowElements(data, { clustered, groupBy }),
+    [data, clustered, groupBy],
   );
 
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges] = useState(initialEdges);
-  const [selected, setSelected] = useState<NetworkNode | null>(null);
+  const [selected, setSelected] = useState<FlowNodePayload | null>(null);
 
   const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
-    setSelected(node.data as NetworkNode);
+    setSelected(node.data as FlowNodePayload);
   }, []);
 
   return (
     <div className="relative h-[min(78vh,820px)] w-full min-h-[480px] rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={(changes) =>
-          setNodes((nds) => applyNodeChanges(changes, nds))
-        }
+        key={`${clustered ? "clustered" : "raw"}-${groupBy}-${data.nodes.length}-${data.edges.length}`}
+        nodes={initialNodes}
+        edges={initialEdges}
         nodeTypes={nodeTypes}
         onNodeClick={onNodeClick}
         fitView

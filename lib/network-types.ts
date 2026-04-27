@@ -1,4 +1,5 @@
 export type NodeKind = "me" | "entity" | "company" | "person";
+export type ClusterGroupBy = "industry" | "company" | "outreach";
 
 export type BaseNetworkNode = {
   id: string;
@@ -68,5 +69,21 @@ export type NetworkData = {
   edges: NetworkEdge[];
 };
 
+export type ClusterFlowNode = {
+  id: string;
+  kind: "cluster";
+  label: string;
+  groupBy: ClusterGroupBy;
+  groupKey: string;
+  count: number;
+  memberIds: string[];
+  memberLabels: string[];
+};
+
 /** Payload stored on each React Flow node `data` for rendering + modal */
-export type FlowNodePayload = NetworkNode;
+export type FlowNodePayload = NetworkNode | ClusterFlowNode;
+
+export type GraphViewOptions = {
+  clustered: boolean;
+  groupBy: ClusterGroupBy;
+};
