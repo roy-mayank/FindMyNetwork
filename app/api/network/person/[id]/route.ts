@@ -3,14 +3,14 @@ import { eq, or } from "drizzle-orm";
 
 import { getDb } from "@/db/index";
 import { edges, nodes } from "@/db/schema";
-import { authorizeMcpRequest } from "@/lib/mcp-auth";
+import { authorizeWriteRequest } from "@/lib/api-auth";
 import { loadNetworkData } from "@/lib/network-repo";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const denied = authorizeMcpRequest(request);
+  const denied = authorizeWriteRequest(request);
   if (denied) return denied;
 
   const { id: personId } = await params;

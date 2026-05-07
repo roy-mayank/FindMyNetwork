@@ -44,6 +44,7 @@ export const networkPatchEdgeSchema = z.object({
   id: z.string().min(1).optional(),
   source: z.string().min(1),
   target: z.string().min(1),
+  connectionThrough: z.string().min(1).optional(),
 });
 
 export const companyProfilePatchSchema = z.object({

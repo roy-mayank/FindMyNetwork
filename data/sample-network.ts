@@ -1,4 +1,4 @@
-import type { NetworkData } from "@/lib/network-types";
+import { DEFAULT_CONNECTION_THROUGH, type NetworkData } from "@/lib/network-types";
 
 /**
  * Edit this file to reflect your real network.
@@ -18,12 +18,14 @@ export const sampleNetwork: NetworkData = {
       label: "Acme Corp",
       kind: "company",
       subtitle: "Current team",
+      startupStatus: "established",
     },
     {
       id: "co-2",
       label: "Beta Labs",
       kind: "company",
       subtitle: "Past internship",
+      startupStatus: "startup",
     },
     {
       id: "p-1",
@@ -56,8 +58,8 @@ export const sampleNetwork: NetworkData = {
     { source: "me", target: "uni-1" },
     { source: "me", target: "co-1" },
     { source: "me", target: "co-2" },
-    { source: "co-1", target: "p-1" },
-    { source: "co-1", target: "p-2" },
-    { source: "co-2", target: "p-3" },
+    { source: "co-1", target: "p-1", connectionThrough: DEFAULT_CONNECTION_THROUGH },
+    { source: "co-1", target: "p-2", connectionThrough: "Alumni intro" },
+    { source: "co-2", target: "p-3", connectionThrough: "Conference met" },
   ],
 };

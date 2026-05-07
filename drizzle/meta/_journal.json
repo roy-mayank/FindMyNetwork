@@ -57,6 +57,13 @@
       "when": 1777173605000,
       "tag": "0007_email_drafts_person_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1777173606000,
+      "tag": "0008_edges_connection_through",
+      "breakpoints": true
     }
   ]
 }

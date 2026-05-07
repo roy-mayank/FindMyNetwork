@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb } from "@/db/index";
 import { nodes } from "@/db/schema";
 import { applyNetworkPatch } from "@/lib/network-repo";
+import { DEFAULT_CONNECTION_THROUGH } from "@/lib/network-types";
 
 const baseSchema = z.object({
   label: z.string().min(1, "Name is required"),
@@ -18,11 +19,18 @@ const companyInputSchema = baseSchema.extend({
   industry: z.string().min(1, "Industry is required"),
   subtitle: z.string().optional(),
   website: z.string().url("Website must be a valid URL").optional().or(z.literal("")),
+  startupStatus: z.enum(["startup", "established"]).optional(),
+  /** 1–5 optional purpose / likability alignment */
+  purposeLikabilityMatch: z.coerce.number().int().min(1).max(5).optional(),
+  /** Fun fact or short company description */
+  description: z.string().optional(),
   connectToId: z.string().min(1).optional(),
 });
 
 const personInputSchema = baseSchema.extend({
   kind: z.literal("person"),
+  /** Stored on company → person edge (e.g. warm intro vs cold outreach). */
+  connectionThrough: z.string().min(1).optional(),
   title: z.string().optional(),
   linkedinUrl: z
     .string()
@@ -109,6 +117,11 @@ export async function POST(request: Request) {
             payload: {
               subtitle: trimOrUndefined(input.subtitle),
               website: trimOrUndefined(input.website),
+              description: trimOrUndefined(input.description),
+              startupStatus: input.startupStatus ?? "established",
+              ...(typeof input.purposeLikabilityMatch === "number"
+                ? { purposeLikabilityMatch: input.purposeLikabilityMatch }
+                : {}),
               sourceUrl: trimOrUndefined(input.sourceUrl),
               sourceType: trimOrUndefined(input.sourceType),
               confidence: input.confidence,
@@ -163,7 +176,14 @@ export async function POST(request: Request) {
           },
         },
       ],
-      edges: [{ source: input.companyId, target: nodeId }],
+      edges: [
+        {
+          source: input.companyId,
+          target: nodeId,
+          connectionThrough:
+            trimOrUndefined(input.connectionThrough) ?? DEFAULT_CONNECTION_THROUGH,
+        },
+      ],
       personProfiles: [
         {
           personId: nodeId,

@@ -51,6 +51,17 @@ export function GraphNode(props: NodeProps) {
           {data.title}
         </div>
       ) : null}
+      {data.kind === "company" && data.startupStatus ? (
+        <div
+          className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+            data.startupStatus === "startup"
+              ? "bg-amber-300/95 text-amber-950 ring-1 ring-amber-500/40"
+              : "bg-slate-200/95 text-slate-800 ring-1 ring-slate-400/50 dark:bg-slate-600/90 dark:text-slate-100 dark:ring-slate-400/30"
+          }`}
+        >
+          {data.startupStatus === "startup" ? "Startup" : "Established"}
+        </div>
+      ) : null}
       {subtitle ? (
         <div className="mt-1 text-[11px] font-normal opacity-80">{subtitle}</div>
       ) : null}

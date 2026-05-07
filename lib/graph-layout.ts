@@ -1,12 +1,15 @@
 import type { Edge, Node } from "@xyflow/react";
-import type {
-  ClusterFlowNode,
-  ClusterGroupBy,
-  FlowNodePayload,
-  GraphViewOptions,
-  NetworkData,
-  NetworkEdge,
-  NetworkNode,
+import {
+  assertExactlyOneMeNode,
+  DEFAULT_CONNECTION_THROUGH,
+  type ClusterFlowNode,
+  type ClusterGroupBy,
+  type CompanyNetworkNode,
+  type FlowNodePayload,
+  type GraphViewOptions,
+  type NetworkData,
+  type NetworkEdge,
+  type NetworkNode,
 } from "@/lib/network-types";
 
 const CENTER = { x: 420, y: 340 };
@@ -49,10 +52,8 @@ function placeOnRing(
  */
 export function computePositions(data: NetworkData): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
-  const me = data.nodes.find((n) => n.kind === "me");
-  if (!me) {
-    throw new Error('NetworkData must include exactly one node with kind "me".');
-  }
+  assertExactlyOneMeNode(data.nodes);
+  const me = data.nodes.find((n) => n.kind === "me")!;
 
   positions.set(me.id, { ...CENTER });
 
@@ -360,6 +361,93 @@ function buildOutreachClusterElements(
   return { nodes, edges };
 }
 
+function startupBucketKey(n: CompanyNetworkNode): "startup" | "established" | "unknown" {
+  if (n.startupStatus === "startup") return "startup";
+  if (n.startupStatus === "established") return "established";
+  return "unknown";
+}
+
+/** Group companies (and their employees) by startup vs established for scoring-oriented views. */
+function buildStartupClusterElements(
+  data: NetworkData,
+  positions: Map<string, { x: number; y: number }>,
+): { nodes: Node[]; edges: Edge[] } {
+  const byId = nodeById(data);
+  const companyPeople = companyToPeople(data);
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  const usedMembers = new Set<string>();
+  const usedAnchors = new Set<string>();
+
+  const bucketLabels: Record<"startup" | "established" | "unknown", string> = {
+    startup: "Startup orgs & people",
+    established: "Established orgs & people",
+    unknown: "Company type not set",
+  };
+  const bucketKeys = ["startup", "established", "unknown"] as const;
+  const membersByKey = new Map<(typeof bucketKeys)[number], Set<string>>();
+  for (const k of bucketKeys) membersByKey.set(k, new Set());
+
+  for (const n of data.nodes) {
+    if (n.kind !== "company") continue;
+    const key = startupBucketKey(n);
+    const set = membersByKey.get(key)!;
+    set.add(n.id);
+    for (const pid of companyPeople.get(n.id) ?? []) set.add(pid);
+  }
+
+  const me = data.nodes.find((x) => x.kind === "me");
+  const mePos = me ? (positions.get(me.id) ?? CENTER) : CENTER;
+  if (me) {
+    nodes.push(toFlowNode(me, mePos));
+    usedAnchors.add(me.id);
+  }
+
+  const activeBuckets = bucketKeys.filter((k) => (membersByKey.get(k)?.size ?? 0) > 0);
+  const nBuckets = Math.max(activeBuckets.length, 1);
+  let idx = 0;
+  for (const key of activeBuckets) {
+    const memberIds = [...(membersByKey.get(key) ?? new Set())];
+    memberIds.forEach((id) => usedMembers.add(id));
+    const cluster = clusterNode("startup", key, bucketLabels[key], memberIds, byId);
+    const angle = -Math.PI / 2 + (2 * Math.PI * idx) / nBuckets;
+    const radius = 300;
+    nodes.push(
+      toFlowNode(cluster, {
+        x: mePos.x + radius * Math.cos(angle),
+        y: mePos.y + radius * Math.sin(angle),
+      }),
+    );
+    if (me) {
+      edges.push({
+        id: `e-${me.id}-${cluster.id}`,
+        source: me.id,
+        target: cluster.id,
+        animated: false,
+      });
+    }
+    idx += 1;
+  }
+
+  for (const n of data.nodes) {
+    if (n.kind === "me") continue;
+    if (usedAnchors.has(n.id) || usedMembers.has(n.id)) continue;
+    nodes.push(toFlowNode(n, positions.get(n.id) ?? CENTER));
+  }
+
+  for (const e of data.edges) {
+    if (usedMembers.has(e.source) || usedMembers.has(e.target)) continue;
+    edges.push({
+      id: `e-${e.source}-${e.target}`,
+      source: e.source,
+      target: e.target,
+      animated: false,
+    });
+  }
+
+  return { nodes, edges };
+}
+
 function buildClusteredElements(
   data: NetworkData,
   groupBy: ClusterGroupBy,
@@ -367,6 +455,7 @@ function buildClusteredElements(
 ): { nodes: Node[]; edges: Edge[] } {
   if (groupBy === "industry") return buildIndustryClusterElements(data, positions);
   if (groupBy === "company") return buildCompanyClusterElements(data, positions);
+  if (groupBy === "startup") return buildStartupClusterElements(data, positions);
   return buildOutreachClusterElements(data, positions);
 }
 
@@ -384,11 +473,22 @@ export function buildReactFlowElements(
 
   const nodes: Node[] = data.nodes.map((n) => toFlowNode(n, positions.get(n.id) ?? CENTER));
 
+  const companyPersonEdgeLabel = (e: NetworkEdge): string | undefined => {
+    const src = data.nodes.find((n) => n.id === e.source);
+    const tgt = data.nodes.find((n) => n.id === e.target);
+    if (src?.kind !== "company" || tgt?.kind !== "person") return undefined;
+    return e.connectionThrough ?? DEFAULT_CONNECTION_THROUGH;
+  };
+
   const edges: Edge[] = data.edges.map((e, i) => ({
-    id: `e-${e.source}-${e.target}-${i}`,
+    id: e.id ?? `e-${e.source}-${e.target}-${i}`,
     source: e.source,
     target: e.target,
     animated: false,
+    label: companyPersonEdgeLabel(e),
+    labelStyle: { fontSize: 10, fill: "#4c1d95", fontWeight: 600 },
+    labelBgStyle: { fill: "#fef9c3", fillOpacity: 0.92 },
+    labelShowBg: true,
   }));
 
   return { nodes, edges };

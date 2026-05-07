@@ -14,11 +14,28 @@ export function networkNodeToStorage(n: NetworkNode): {
   if (n.kind === "company") {
     if (n.website) payload.website = n.website;
     if (n.fundingSummary) payload.fundingSummary = n.fundingSummary;
+    if (n.description) payload.description = n.description;
+    if (typeof n.purposeLikabilityMatch === "number") {
+      payload.purposeLikabilityMatch = n.purposeLikabilityMatch;
+    }
+    if (n.startupStatus) payload.startupStatus = n.startupStatus;
+    if (typeof n.internationalHiringScore === "number") {
+      payload.internationalHiringScore = n.internationalHiringScore;
+    }
+    if (n.hiringSignalsSummary) payload.hiringSignalsSummary = n.hiringSignalsSummary;
   }
   if (n.kind === "person") {
     if (n.title) payload.title = n.title;
     if (n.linkedinUrl) payload.linkedinUrl = n.linkedinUrl;
     if (n.alumniUrl) payload.alumniUrl = n.alumniUrl;
+    if (n.funFacts) payload.funFacts = n.funFacts;
+    if (typeof n.lastOutreachScore === "number") {
+      payload.lastOutreachScore = n.lastOutreachScore;
+    }
+    if (typeof n.internationalHiringScore === "number") {
+      payload.internationalHiringScore = n.internationalHiringScore;
+    }
+    if (n.hiringSignalsSummary) payload.hiringSignalsSummary = n.hiringSignalsSummary;
     if (n.sourceUrl) payload.sourceUrl = n.sourceUrl;
     if (n.sourceType) payload.sourceType = n.sourceType;
     if (n.rawExtract) payload.rawExtract = n.rawExtract;

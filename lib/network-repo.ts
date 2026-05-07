@@ -11,11 +11,13 @@ import {
   nodes,
   personProfile,
 } from "@/db/schema";
-import type {
-  EmailDraft,
-  NetworkData,
-  NetworkEdge,
-  NetworkNode,
+import {
+  assertExactlyOneMeNode,
+  DEFAULT_CONNECTION_THROUGH,
+  type EmailDraft,
+  type NetworkData,
+  type NetworkEdge,
+  type NetworkNode,
 } from "@/lib/network-types";
 import type { NetworkPatchInput } from "@/lib/network-patch-schema";
 import type * as schema from "@/db/schema";
@@ -87,6 +89,27 @@ function rowToNetworkNode(
       typeof payload.fundingSummary === "string"
         ? payload.fundingSummary
         : fundingSummaryForStages(extras.funding ?? []);
+    const description =
+      typeof payload.description === "string" ? payload.description : undefined;
+    const purposeLikabilityMatchRaw = payload.purposeLikabilityMatch;
+    const purposeLikabilityMatch =
+      typeof purposeLikabilityMatchRaw === "number" &&
+      Number.isFinite(purposeLikabilityMatchRaw)
+        ? purposeLikabilityMatchRaw
+        : undefined;
+    const internationalHiringScoreRaw = payload.internationalHiringScore;
+    const internationalHiringScore =
+      typeof internationalHiringScoreRaw === "number" &&
+      Number.isFinite(internationalHiringScoreRaw)
+        ? internationalHiringScoreRaw
+        : undefined;
+    const hiringSignalsSummary =
+      typeof payload.hiringSignalsSummary === "string"
+        ? payload.hiringSignalsSummary
+        : undefined;
+    const startupRaw = payload.startupStatus;
+    const startupStatus =
+      startupRaw === "startup" || startupRaw === "established" ? startupRaw : undefined;
     return {
       id: row.id,
       kind: "company",
@@ -94,6 +117,11 @@ function rowToNetworkNode(
       subtitle,
       website: website ?? undefined,
       fundingSummary,
+      description,
+      purposeLikabilityMatch,
+      startupStatus,
+      internationalHiringScore,
+      hiringSignalsSummary,
     };
   }
   const title = typeof payload.title === "string" ? payload.title : undefined;
@@ -109,6 +137,21 @@ function rowToNetworkNode(
     typeof payload.rawExtract === "string" ? payload.rawExtract : undefined;
   const confidence =
     typeof payload.confidence === "number" ? payload.confidence : undefined;
+  const funFacts =
+    typeof payload.funFacts === "string" ? payload.funFacts : undefined;
+  const lastOutreachScoreRaw = payload.lastOutreachScore;
+  const lastOutreachScore =
+    typeof lastOutreachScoreRaw === "number" && Number.isFinite(lastOutreachScoreRaw)
+      ? lastOutreachScoreRaw
+      : undefined;
+  const internationalHiringScoreRaw = payload.internationalHiringScore;
+  const internationalHiringScore =
+    typeof internationalHiringScoreRaw === "number" &&
+    Number.isFinite(internationalHiringScoreRaw)
+      ? internationalHiringScoreRaw
+      : undefined;
+  const hiringSignalsSummary =
+    typeof payload.hiringSignalsSummary === "string" ? payload.hiringSignalsSummary : undefined;
   return {
     id: row.id,
     kind: "person",
@@ -116,6 +159,10 @@ function rowToNetworkNode(
     title,
     linkedinUrl,
     alumniUrl,
+    funFacts,
+    lastOutreachScore,
+    internationalHiringScore,
+    hiringSignalsSummary,
     notes: extras.person?.notes ?? undefined,
     email: extras.person?.email ?? undefined,
     secondaryEmail: extras.person?.secondaryEmail ?? undefined,
@@ -131,7 +178,25 @@ function rowToNetworkNode(
   };
 }
 
+async function ensureExactlyOneMeRow(db: Db): Promise<void> {
+  const meRows = await db.select({ id: nodes.id }).from(nodes).where(eq(nodes.kind, "me"));
+  if (meRows.length > 1) {
+    throw new Error(
+      `Invariant violated: database has ${meRows.length} nodes with kind "me"; exactly one is required.`,
+    );
+  }
+  if (meRows.length === 0) {
+    await db.insert(nodes).values({
+      id: "me",
+      kind: "me",
+      label: "You",
+      payloadJson: "{}",
+    });
+  }
+}
+
 export async function loadNetworkData(db: Db): Promise<NetworkData> {
+  await ensureExactlyOneMeRow(db);
   const nodeRows = await db.select().from(nodes);
   const edgeRows = await db.select().from(edges);
   const companies = await db.select().from(companyProfile);
@@ -156,10 +221,13 @@ export async function loadNetworkData(db: Db): Promise<NetworkData> {
   );
 
   const networkEdges: NetworkEdge[] = edgeRows.map((e) => ({
+    id: e.id,
     source: e.sourceId,
     target: e.targetId,
+    connectionThrough: e.connectionThrough ?? DEFAULT_CONNECTION_THROUGH,
   }));
 
+  assertExactlyOneMeNode(networkNodes);
   return { nodes: networkNodes, edges: networkEdges };
 }
 
@@ -210,11 +278,28 @@ export function applyNetworkPatch(db: Db, patch: NetworkPatchInput): void {
     if (patch.edges?.length) {
       for (const e of patch.edges) {
         const id = e.id ?? stableEdgeId(e.source, e.target);
+        const existing = tx
+          .select()
+          .from(edges)
+          .where(and(eq(edges.sourceId, e.source), eq(edges.targetId, e.target)))
+          .limit(1)
+          .all()[0];
+        const trimmed =
+          typeof e.connectionThrough === "string" ? e.connectionThrough.trim() : "";
+        const connectionThrough =
+          trimmed !== ""
+            ? trimmed
+            : (existing?.connectionThrough ?? DEFAULT_CONNECTION_THROUGH);
         tx.insert(edges)
-          .values({ id, sourceId: e.source, targetId: e.target })
+          .values({
+            id,
+            sourceId: e.source,
+            targetId: e.target,
+            connectionThrough,
+          })
           .onConflictDoUpdate({
             target: [edges.sourceId, edges.targetId],
-            set: { id },
+            set: { id, connectionThrough },
           })
           .run();
       }

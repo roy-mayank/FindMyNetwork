@@ -10,6 +10,7 @@ import {
   listPendingProposalsAction,
   rejectProposalAction,
 } from "@/app/actions/network";
+import type { EnrichmentArtifactType } from "@/lib/llm/schemas/enrichment-extraction";
 import type { EmailDraft, FlowNodePayload } from "@/lib/network-types";
 
 type PersonModalProps = {
@@ -49,6 +50,12 @@ export function PersonModal({
   });
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [insightArtifactType, setInsightArtifactType] =
+    useState<EnrichmentArtifactType>("linkedin_text");
+  const [insightPaste, setInsightPaste] = useState("");
+  const [insightApifyRunId, setInsightApifyRunId] = useState("");
+  const [insightBusy, setInsightBusy] = useState(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -135,7 +142,7 @@ export function PersonModal({
       }}
     >
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-violet-950/45 backdrop-blur-[2px] dark:bg-black/55"
         aria-hidden
       />
       <div
@@ -143,23 +150,34 @@ export function PersonModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="network-node-title"
-        className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-700 dark:bg-zinc-900"
+        className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-3xl border-2 border-amber-200/70 bg-gradient-to-b from-white via-white to-sky-50/50 p-6 shadow-2xl shadow-amber-200/25 ring-1 ring-white/70 dark:border-violet-500/35 dark:from-zinc-900 dark:via-zinc-900 dark:to-violet-950/50 dark:shadow-violet-950/40 dark:ring-violet-500/15"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-700 dark:text-amber-300/90">
               {kindLabel[node.kind]}
             </p>
             <h2
               id="network-node-title"
-              className="mt-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50"
+              className="mt-1 bg-gradient-to-r from-violet-700 to-fuchsia-700 bg-clip-text text-xl font-bold text-transparent dark:from-sky-200 dark:to-amber-200"
             >
               {node.label}
             </h2>
             {isPerson && node.title ? (
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
                 {node.title}
+              </p>
+            ) : null}
+            {isPerson &&
+            typeof node.internationalHiringScore === "number" &&
+            Number.isFinite(node.internationalHiringScore) ? (
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Intl hiring score (model-assisted):{" "}
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                  {node.internationalHiringScore}
+                </span>
+                {node.hiringSignalsSummary ? ` — ${node.hiringSignalsSummary}` : null}
               </p>
             ) : null}
             {!isPerson && "subtitle" in node && node.subtitle ? (
@@ -184,11 +202,109 @@ export function PersonModal({
                 Enrichment (Series A/B pipeline)
               </p>
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-                Pending MCP proposals for this person:{" "}
+                Pending enrichment proposals for this person:{" "}
                 <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                   {pendingCount}
                 </span>
               </p>
+              <div className="mt-4 rounded-lg border border-violet-200 bg-violet-50/60 p-3 dark:border-violet-900/60 dark:bg-violet-950/25">
+                <p className="text-xs font-medium text-violet-900 dark:text-violet-100">
+                  Claude insights
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-violet-900/80 dark:text-violet-200/90">
+                  Paste profile text, Careershift export, or OPT/H-1B tables you have rights to use. Optionally add
+                  a completed Apify run id (requires{" "}
+                  <code className="rounded bg-violet-100/80 px-0.5 dark:bg-violet-900/80">APIFY_API_TOKEN</code> on the
+                  server). Creates a pending proposal—review before apply.
+                </p>
+                <label className="mt-2 block text-[11px] font-medium text-violet-900 dark:text-violet-100">
+                  Artifact type
+                  <select
+                    value={insightArtifactType}
+                    onChange={(e) =>
+                      setInsightArtifactType(e.target.value as EnrichmentArtifactType)
+                    }
+                    className="mt-1 w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-xs dark:border-violet-800 dark:bg-zinc-900"
+                  >
+                    <option value="linkedin_text">LinkedIn / general text</option>
+                    <option value="linkedin_json">LinkedIn JSON</option>
+                    <option value="careershift_text">Careershift paste</option>
+                    <option value="hiring_table_text">Hiring / OPT / H-1B table</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <textarea
+                  rows={4}
+                  placeholder="Paste artifact text or JSON here…"
+                  value={insightPaste}
+                  onChange={(e) => setInsightPaste(e.target.value)}
+                  className="mt-2 w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-xs dark:border-violet-800 dark:bg-zinc-900"
+                />
+                <input
+                  placeholder="Apify actor run id (optional)"
+                  value={insightApifyRunId}
+                  onChange={(e) => setInsightApifyRunId(e.target.value)}
+                  className="mt-2 w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-xs dark:border-violet-800 dark:bg-zinc-900"
+                />
+                {insightError ? (
+                  <p className="mt-2 text-[11px] text-red-600 dark:text-red-400">{insightError}</p>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={insightBusy || (!insightPaste.trim() && !insightApifyRunId.trim())}
+                  onClick={async () => {
+                    setInsightError(null);
+                    if (!insightPaste.trim() && !insightApifyRunId.trim()) {
+                      setInsightError("Add pasted text and/or an Apify run id.");
+                      return;
+                    }
+                    setInsightBusy(true);
+                    try {
+                      const artifacts =
+                        insightPaste.trim().length > 0
+                          ? [
+                              {
+                                id: `paste-${Date.now()}`,
+                                type: insightArtifactType,
+                                content: insightPaste.trim(),
+                              },
+                            ]
+                          : [];
+                      const res = await fetch("/api/network/enrich-insights", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          personId: node.id,
+                          artifacts,
+                          apifyRunId: insightApifyRunId.trim() || undefined,
+                        }),
+                      });
+                      if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(text || `HTTP ${res.status}`);
+                      }
+                      setInsightPaste("");
+                      setInsightApifyRunId("");
+                      const rows = await listPendingProposalsAction(node.id);
+                      setPendingCount(rows.length);
+                      setProposals(
+                        rows.map((row) => ({
+                          id: row.id,
+                          createdAt: row.createdAt,
+                          evidenceUrls: row.evidenceUrls,
+                        })),
+                      );
+                    } catch (e) {
+                      setInsightError(e instanceof Error ? e.message : "Enrich failed");
+                    } finally {
+                      setInsightBusy(false);
+                    }
+                  }}
+                  className="mt-2 w-full rounded-lg bg-violet-700 px-3 py-2 text-xs font-medium text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {insightBusy ? "Running Claude…" : "Run Claude extract"}
+                </button>
+              </div>
               {actionError ? (
                 <p className="mt-2 text-xs text-red-600 dark:text-red-400">{actionError}</p>
               ) : null}
@@ -331,9 +447,9 @@ export function PersonModal({
                 </div>
               ) : null}
               <p className="mt-3 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                MCP tools <code className="rounded bg-zinc-200/80 px-1 dark:bg-zinc-700">propose_network_patch</code>{" "}
-                and <code className="rounded bg-zinc-200/80 px-1 dark:bg-zinc-700">apply_network_patch</code> use the
-                same API as this app. Apply merges the newest pending proposal created for this person.
+                Proposals can come from <strong>Claude insights</strong>, directory enrichment, or{" "}
+                <code className="rounded bg-zinc-200/80 px-1 dark:bg-zinc-700">POST /api/network/proposals</code> with
+                your API secret. <strong>Apply latest</strong> merges the newest pending row for this person.
               </p>
             </div>
             <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/60">
@@ -604,7 +720,14 @@ export function PersonModal({
                 Cluster summary
               </p>
               <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
-                Grouping: <span className="font-medium">{node.groupBy}</span>
+                Grouping:{" "}
+                <span className="font-medium">
+                  {node.groupBy === "startup"
+                    ? "Startup vs established"
+                    : node.groupBy === "outreach"
+                      ? "Outreach recency"
+                      : node.groupBy}
+                </span>
               </p>
               <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">
                 Members: <span className="font-medium">{node.count}</span>
@@ -629,12 +752,8 @@ export function PersonModal({
           </div>
         ) : (
           <p className="mt-6 text-sm text-zinc-500 dark:text-zinc-400">
-            Click a person node to see LinkedIn and alumni links. Edit nodes
-            and edges in{" "}
-            <code className="rounded bg-zinc-100 px-1 py-0.5 text-xs dark:bg-zinc-800">
-              the database via MCP / API
-            </code>
-            .
+            Click a person node to see LinkedIn and alumni links. Edit nodes and edges via the{" "}
+            <code className="rounded bg-zinc-100 px-1 py-0.5 text-xs dark:bg-zinc-800">HTTP API</code> or the app UI.
           </p>
         )}
 

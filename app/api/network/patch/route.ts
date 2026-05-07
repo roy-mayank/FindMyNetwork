@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 
 import { getDb } from "@/db/index";
-import { authorizeMcpRequest } from "@/lib/mcp-auth";
+import { authorizeWriteRequest } from "@/lib/api-auth";
 import { networkPatchSchema } from "@/lib/network-patch-schema";
 import { applyNetworkPatch } from "@/lib/network-repo";
 
 export async function POST(request: NextRequest) {
-  const denied = authorizeMcpRequest(request);
+  const denied = authorizeWriteRequest(request);
   if (denied) return denied;
 
   let body: unknown;

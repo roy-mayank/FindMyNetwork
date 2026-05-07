@@ -45,7 +45,7 @@ export function NetworkCanvas({
   }, []);
 
   return (
-    <div className="relative h-[min(78vh,820px)] w-full min-h-[480px] rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="relative h-[min(78vh,820px)] w-full min-h-[480px] overflow-hidden rounded-3xl border-2 border-amber-200/70 bg-gradient-to-b from-white/95 to-sky-50/40 shadow-xl shadow-amber-200/20 ring-1 ring-white/50 dark:border-violet-500/30 dark:from-zinc-900/90 dark:to-violet-950/40 dark:shadow-violet-950/30 dark:ring-violet-500/10">
       <ReactFlow
         key={`${clustered ? "clustered" : "raw"}-${groupBy}-${data.nodes.length}-${data.edges.length}`}
         nodes={initialNodes}

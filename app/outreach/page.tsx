@@ -1,30 +1,50 @@
 import Link from "next/link";
 
-import { OutreachQuickForm } from "@/components/outreach/OutreachQuickForm";
+import { JoyShell, joyTitleClassName } from "@/components/layout/JoyShell";
+import { OutreachQueue } from "@/components/outreach/OutreachQueue";
 
 export default function OutreachPage() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
-      <header className="border-b border-zinc-200 bg-white/80 px-6 py-5 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Quick outreach</h1>
-            <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-400">
-              Update last reached and last attempt without opening the graph. Voice capture is ready for
-              your future transcription pipeline.
-            </p>
-          </div>
+    <JoyShell
+      eyebrow="Priority queue"
+      title={<h1 className={joyTitleClassName()}>Outreach</h1>}
+      description={
+        <>
+          A ranked list of people to contact next, using an outreach score you can tune. Toggle heuristic
+          factors on or off—disabled factors are left out of the score entirely. Heavier scoring logic is
+          still to come; update reach dates from the graph or data collection.
+        </>
+      }
+      actions={
+        <>
           <Link
             href="/"
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            className="rounded-full border-2 border-violet-200/80 bg-white/90 px-4 py-2 text-sm font-semibold text-violet-800 shadow-sm transition hover:border-violet-400 hover:bg-white dark:border-violet-500/40 dark:bg-zinc-900/80 dark:text-violet-100 dark:hover:border-amber-400/60 dark:hover:bg-zinc-900"
           >
-            Graph home
+            Home
           </Link>
-        </div>
-      </header>
-      <main className="flex flex-1 flex-col px-4 py-6 sm:px-6">
-        <OutreachQuickForm />
-      </main>
-    </div>
+          <Link
+            href="/graph"
+            className="rounded-full bg-gradient-to-r from-sky-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/25 transition hover:brightness-110 dark:from-sky-600 dark:to-teal-500"
+          >
+            Graph
+          </Link>
+          <Link
+            href="/collect"
+            className="rounded-full border-2 border-amber-300/80 bg-white/90 px-4 py-2 text-sm font-semibold text-amber-900 shadow-sm transition hover:border-amber-500 hover:bg-amber-50/90 dark:border-amber-500/40 dark:bg-zinc-900/80 dark:text-amber-100 dark:hover:bg-zinc-900"
+          >
+            Collect
+          </Link>
+          <Link
+            href="/analytics"
+            className="rounded-full border-2 border-teal-300/80 bg-white/90 px-4 py-2 text-sm font-semibold text-teal-900 shadow-sm transition hover:border-teal-500 hover:bg-teal-50/90 dark:border-teal-500/40 dark:bg-zinc-900/80 dark:text-teal-100 dark:hover:bg-zinc-900"
+          >
+            Analytics
+          </Link>
+        </>
+      }
+    >
+      <OutreachQueue />
+    </JoyShell>
   );
 }

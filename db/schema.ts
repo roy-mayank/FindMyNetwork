@@ -20,6 +20,8 @@ export const edges = sqliteTable(
     targetId: text("target_id")
       .notNull()
       .references(() => nodes.id, { onDelete: "cascade" }),
+    /** How you know this person at this company (e.g. cold outreach, warm intro). */
+    connectionThrough: text("connection_through").notNull().default("Cold approach"),
   },
   (t) => [uniqueIndex("edges_source_target_uq").on(t.sourceId, t.targetId)],
 );

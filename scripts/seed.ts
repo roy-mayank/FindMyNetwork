@@ -4,6 +4,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { getDb } from "../db/index";
 import { edges, nodes } from "../db/schema";
 import { sampleNetwork } from "../data/sample-network";
+import { DEFAULT_CONNECTION_THROUGH } from "../lib/network-types";
 import { edgeToStorageId, networkNodeToStorage } from "../lib/network-row-mapper";
 
 async function main() {
@@ -26,6 +27,7 @@ async function main() {
       id: edgeToStorageId(e, i),
       sourceId: e.source,
       targetId: e.target,
+      connectionThrough: e.connectionThrough ?? DEFAULT_CONNECTION_THROUGH,
     });
   }
 

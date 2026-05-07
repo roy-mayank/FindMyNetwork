@@ -6,6 +6,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { updatePersonReachAction } from "@/app/actions/network";
 import type { NetworkData, PersonNetworkNode } from "@/lib/network-types";
 
+const oLabel =
+  "block text-xs font-semibold uppercase tracking-wide text-violet-800/90 dark:text-amber-200/90";
+const oInput =
+  "mt-1 w-full rounded-xl border-2 border-sky-200/90 bg-white/95 px-3 py-2 text-sm text-zinc-900 shadow-inner outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-amber-200/80 dark:border-violet-500/35 dark:bg-zinc-950/90 dark:text-zinc-100 dark:focus:border-amber-400 dark:focus:ring-fuchsia-500/35";
+const oSection =
+  "rounded-3xl border-2 border-amber-200/60 bg-white/85 p-6 shadow-lg shadow-amber-200/15 backdrop-blur-sm dark:border-violet-500/25 dark:bg-zinc-900/70 dark:shadow-violet-950/25";
+
 function todayISODate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -86,13 +93,13 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
     <>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+          <label className={oLabel}>
             Last outreach (reached)
             <input
               type="date"
               value={lastOutreach}
               onChange={(e) => setLastOutreach(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+              className={oInput}
             />
           </label>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -100,7 +107,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => setLastOutreach(todayISODate())}
-              className="rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-50"
             >
               Today
             </button>
@@ -108,7 +115,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => setLastOutreach("")}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-[11px] font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              className="rounded-full border-2 border-sky-200/90 bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-sky-900 hover:border-violet-300 disabled:opacity-50 dark:border-violet-500/40 dark:bg-zinc-900 dark:text-sky-100"
             >
               Clear field
             </button>
@@ -116,7 +123,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => void persistReach({ lastOutreachAt: todayISODate() })}
-              className="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-emerald-700"
+              className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-50"
             >
               Save today only
             </button>
@@ -124,20 +131,20 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => void persistReach({ lastOutreachAt: null })}
-              className="rounded-md border border-red-200 px-2 py-1 text-[11px] font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
+              className="rounded-full border-2 border-rose-300/90 bg-rose-50/90 px-3 py-1.5 text-[11px] font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-600/50 dark:bg-rose-950/40 dark:text-rose-100"
             >
               Clear in DB
             </button>
           </div>
         </div>
         <div>
-          <label className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+          <label className={oLabel}>
             Last attempt
             <input
               type="date"
               value={lastAttempt}
               onChange={(e) => setLastAttempt(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+              className={oInput}
             />
           </label>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -145,7 +152,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => setLastAttempt(todayISODate())}
-              className="rounded-md bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-50"
             >
               Today
             </button>
@@ -153,7 +160,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => setLastAttempt("")}
-              className="rounded-md border border-zinc-300 px-2 py-1 text-[11px] font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-800"
+              className="rounded-full border-2 border-sky-200/90 bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-sky-900 hover:border-violet-300 disabled:opacity-50 dark:border-violet-500/40 dark:bg-zinc-900 dark:text-sky-100"
             >
               Clear field
             </button>
@@ -161,7 +168,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => void persistReach({ lastAttemptAt: todayISODate() })}
-              className="rounded-md bg-emerald-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-emerald-700"
+              className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:brightness-110 disabled:opacity-50"
             >
               Save today only
             </button>
@@ -169,7 +176,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
               type="button"
               disabled={isPending}
               onClick={() => void persistReach({ lastAttemptAt: null })}
-              className="rounded-md border border-red-200 px-2 py-1 text-[11px] font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
+              className="rounded-full border-2 border-rose-300/90 bg-rose-50/90 px-3 py-1.5 text-[11px] font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50 dark:border-rose-600/50 dark:bg-rose-950/40 dark:text-rose-100"
             >
               Clear in DB
             </button>
@@ -187,7 +194,7 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
             setLastAttempt(t);
             void persistReach({ lastOutreachAt: t, lastAttemptAt: t });
           }}
-          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+          className="rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-400/25 transition hover:brightness-110 disabled:opacity-50"
         >
           Mark both today
         </button>
@@ -195,16 +202,16 @@ function PersonReachEditor({ person, onReload }: PersonReachEditorProps) {
           type="button"
           disabled={isPending}
           onClick={() => void persistReach()}
-          className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          className="rounded-full border-2 border-violet-200/90 bg-white/90 px-5 py-2.5 text-sm font-bold text-violet-900 shadow-sm transition hover:border-violet-400 disabled:opacity-50 dark:border-violet-500/40 dark:bg-zinc-900 dark:text-violet-100"
         >
           {isPending ? "Saving…" : "Save from fields"}
         </button>
       </div>
       {saveError ? (
-        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{saveError}</p>
+        <p className="mt-2 text-xs font-semibold text-rose-600 dark:text-rose-300">{saveError}</p>
       ) : null}
       {saveOk ? (
-        <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">{saveOk}</p>
+        <p className="mt-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">{saveOk}</p>
       ) : null}
     </>
   );
@@ -331,12 +338,12 @@ export function OutreachQuickForm() {
 
   if (loadError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+      <div className="rounded-3xl border-2 border-rose-300/80 bg-gradient-to-br from-rose-50 to-amber-50 p-5 text-sm text-rose-950 shadow-lg dark:border-rose-500/40 dark:from-rose-950/50 dark:to-amber-950/30 dark:text-rose-100">
         {loadError}
         <button
           type="button"
           onClick={() => void load()}
-          className="mt-3 rounded-lg bg-red-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-900"
+          className="mt-3 rounded-full bg-gradient-to-r from-rose-500 to-amber-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:brightness-110"
         >
           Retry
         </button>
@@ -346,14 +353,21 @@ export function OutreachQuickForm() {
 
   if (!data) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">Loading contacts…</p>
+      <p className="text-sm font-medium text-violet-800 dark:text-violet-200">Loading contacts…</p>
     );
   }
 
   if (people.length === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        No people in the graph yet. Add a person from the home page or seed the database.
+      <p className="text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
+        No people in the graph yet. Add a person from the{" "}
+        <Link
+          href="/collect"
+          className="font-bold text-fuchsia-700 underline-offset-2 hover:underline dark:text-fuchsia-300"
+        >
+          data collection
+        </Link>{" "}
+        page or seed the database.
       </p>
     );
   }
@@ -362,32 +376,32 @@ export function OutreachQuickForm() {
     <div className="mx-auto max-w-xl space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
-          href="/"
-          className="text-sm font-medium text-zinc-600 underline-offset-4 hover:text-zinc-900 hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
+          href="/graph"
+          className="rounded-full border-2 border-sky-200/80 bg-white/90 px-4 py-2 text-sm font-semibold text-sky-900 shadow-sm transition hover:border-sky-400 dark:border-sky-500/40 dark:bg-zinc-900/80 dark:text-sky-100"
         >
-          Back to graph
+          ← Graph
         </Link>
         <button
           type="button"
           onClick={() => void load()}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          className="rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-4 py-2 text-xs font-bold text-white shadow-md shadow-violet-400/25 hover:brightness-110"
         >
           Refresh list
         </button>
       </div>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Reach dates</h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+      <section className={oSection}>
+        <h2 className="text-lg font-bold text-sky-900 dark:text-sky-100">Reach dates</h2>
+        <p className="mt-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
           Update last outreach (reached) and last attempt instantly. Dates use your local calendar day.
         </p>
 
-        <label className="mt-5 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+        <label className={`mt-5 ${oLabel}`}>
           Person
           <select
             value={activeId}
             onChange={(e) => setPersonId(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+            className={oInput}
           >
             {people.map((p) => (
               <option key={p.id} value={p.id}>
@@ -406,9 +420,9 @@ export function OutreachQuickForm() {
         ) : null}
       </section>
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Voice input</h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+      <section className={oSection}>
+        <h2 className="text-lg font-bold text-fuchsia-900 dark:text-fuchsia-100">Voice input</h2>
+        <p className="mt-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
           Record audio for a future Whisper / Lemonfox pipeline, or use optional browser live captioning
           (Chrome) as a temporary transcript. Nothing is sent to a transcription API yet.
         </p>
@@ -418,7 +432,7 @@ export function OutreachQuickForm() {
             <button
               type="button"
               onClick={() => void startRecording()}
-              className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-medium text-white hover:bg-violet-700"
+              className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:brightness-110"
             >
               Start recording
             </button>
@@ -426,7 +440,7 @@ export function OutreachQuickForm() {
             <button
               type="button"
               onClick={stopRecording}
-              className="rounded-lg bg-rose-600 px-3 py-2 text-xs font-medium text-white hover:bg-rose-700"
+              className="rounded-full bg-gradient-to-r from-rose-500 to-orange-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:brightness-110"
             >
               Stop recording
             </button>
@@ -434,33 +448,33 @@ export function OutreachQuickForm() {
           <button
             type="button"
             onClick={toggleLiveCaption}
-            className={`rounded-lg px-3 py-2 text-xs font-medium ${
+            className={`rounded-full px-4 py-2 text-xs font-bold shadow-sm transition ${
               captioning
-                ? "bg-amber-600 text-white hover:bg-amber-700"
-                : "border border-zinc-300 bg-white text-zinc-900 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                ? "bg-gradient-to-r from-amber-500 to-rose-500 text-white hover:brightness-110"
+                : "border-2 border-amber-200/90 bg-white/90 text-amber-950 hover:border-amber-400 dark:border-amber-500/40 dark:bg-zinc-900 dark:text-amber-100"
             }`}
           >
             {captioning ? "Stop live caption" : "Live caption (browser)"}
           </button>
         </div>
         {recordError ? (
-          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{recordError}</p>
+          <p className="mt-2 text-xs font-medium text-rose-600 dark:text-rose-300">{recordError}</p>
         ) : null}
         {lastBlob ? (
-          <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300">
+          <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
             Last clip: {(lastBlob.size / 1024).toFixed(1)} KB — wire this blob to your transcription endpoint
             next.
           </p>
         ) : null}
 
-        <label className="mt-4 block text-xs font-medium text-zinc-600 dark:text-zinc-300">
+        <label className={`mt-4 ${oLabel}`}>
           Transcript / notes (manual paste or live caption)
           <textarea
             rows={4}
             value={voiceTranscript}
             onChange={(e) => setVoiceTranscript(e.target.value)}
             placeholder="Transcription will appear here after you plug in Whisper or Lemonfox, or use live caption in supported browsers."
-            className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+            className={oInput}
           />
         </label>
       </section>

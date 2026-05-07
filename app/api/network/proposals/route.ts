@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 
 import { getDb } from "@/db/index";
-import { authorizeMcpRequest } from "@/lib/mcp-auth";
+import { authorizeWriteRequest } from "@/lib/api-auth";
 import { enrichmentProposalCreateSchema } from "@/lib/network-patch-schema";
 import { createEnrichmentProposal, listPendingProposalsForPerson } from "@/lib/network-repo";
 
 export async function GET(request: NextRequest) {
-  const denied = authorizeMcpRequest(request);
+  const denied = authorizeWriteRequest(request);
   if (denied) return denied;
 
   const personId = request.nextUrl.searchParams.get("personId");
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const denied = authorizeMcpRequest(request);
+  const denied = authorizeWriteRequest(request);
   if (denied) return denied;
 
   let body: unknown;
