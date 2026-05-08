@@ -29,7 +29,7 @@ export function GraphNode(props: NodeProps) {
 
   return (
     <div
-      className={`min-w-[128px] max-w-[220px] cursor-pointer rounded-xl border px-3 py-2 text-center text-sm font-semibold shadow-md transition-[box-shadow,transform] select-none hover:shadow-lg active:scale-[0.98] ${palette} ${
+      className={`min-w-[128px] max-w-[220px] cursor-grab rounded-xl border px-3 py-2 text-center text-sm font-semibold shadow-md transition-[box-shadow,transform] select-none hover:shadow-lg active:scale-[0.98] active:cursor-grabbing ${palette} ${
         selected
           ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-950/10 dark:ring-offset-zinc-950"
           : ""

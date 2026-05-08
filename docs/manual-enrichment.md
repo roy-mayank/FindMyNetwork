@@ -5,18 +5,17 @@ FindMyNetwork does **not** automatically scrape LinkedIn, Careershift, MyVisaJob
 ## Flow
 
 1. **Collect** snippets: profile text, Careershift contact export, OPT/H-1B table rows, etc.
-2. **Paste** in the person modal under **Claude insights** (artifact type describes what you pasted), or call **`POST /api/network/enrich-insights`** with a JSON body (`personId` or `companyId`, `artifacts[]`, optional `apifyRunId`).
+2. **Paste** in the person modal under **Claude insights** (artifact type describes what you pasted), or call **`POST /api/network/enrich-insights`** with a JSON body (`personId` or `companyId`, `artifacts[]`).
 3. The server runs **Claude** (requires `ANTHROPIC_API_KEY`) and creates a **pending** row in `enrichment_proposals`.
 4. In the UI, **review** and **Apply latest proposal** (or apply a specific id via `POST /api/network/proposals/:id/apply` with `Authorization: Bearer` and `FINDMYNETWORK_API_SECRET`).
 
 ## Optional helpers
 
 - **Structured employer numbers:** add [`data/h1b-employer-snapshots/employers.json`](../data/h1b-employer-snapshots/README.md). Matching keys (normalized company name) are merged as an extra artifact during enrich for people/companies.
-- **Apify:** if you run a LinkedIn (or other) actor on Apify and have a completed **run id**, you can pass `apifyRunId` when calling `enrich-insights` (server needs `APIFY_API_TOKEN`). That is still **your** Apify account and actor choice—not automatic scraping inside the app.
 
 ## Careershift
 
-See [careershift-local.md](./careershift-local.md) for paste-first usage and optional local browser export ideas.
+See [careershift-local.md](./careershift-local.md) for Data collection shortcuts, paste-first usage, and optional local export notes.
 
 ## API secret
 

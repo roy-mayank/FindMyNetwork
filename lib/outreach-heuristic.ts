@@ -1,11 +1,18 @@
 import type {
   CompanyNetworkNode,
+  EntityNetworkNode,
   NetworkData,
   PersonNetworkNode,
 } from "@/lib/network-types";
 
 /** Stable ids for heuristic components (extend as you add factors). */
-export const OUTREACH_FACTOR_IDS = ["internationalHiring"] as const;
+export const OUTREACH_FACTOR_IDS = [
+  "internationalHiring",
+  "emailAvailable",
+  "startupBonus",
+  "companyFunFacts",
+  "industryPreference",
+] as const;
 
 export type OutreachFactorId = (typeof OUTREACH_FACTOR_IDS)[number];
 
@@ -16,11 +23,78 @@ export type OutreachFactorMeta = {
   defaultEnabled: boolean;
 };
 
+/**
+ * Per-factor maximum points. Tweak in code; rebalancing here is the only
+ * place the heuristic weights live. Total max with all factors enabled and
+ * all hits is roughly the sum of these caps.
+ */
+export const OUTREACH_FACTOR_POINTS = {
+  /** 0–100, taken raw from the LLM/H-1B-derived score on person or employer. */
+  internationalHiring: 100,
+  /** Large boost when an email is on file (lets you actually reach them). */
+  emailAvailable: 60,
+  /** Lower amount when only a secondary email is recorded. */
+  emailAvailableSecondaryOnly: 30,
+  /** Bump for being at a startup (smaller, more-personable orgs). */
+  startupBonus: 25,
+  /** Small bump when the company carries a fun fact / description. */
+  companyFunFacts: 15,
+  /** Industry-preference bonus when the linked entity matches a keyword. */
+  industryPreference: 40,
+} as const;
+
+/**
+ * Case-insensitive substring keywords matched against a company's industry
+ * label (the linked entity node's label). Edit this list to retune which
+ * industries get the preference bump.
+ */
+export const INDUSTRY_PREFERENCE_KEYWORDS: readonly string[] = [
+  "aviation",
+  "aerospace",
+  "drone",
+  "space",
+  "defense",
+  "satellite",
+  "software",
+  "fintech",
+  "engineering",
+  "robotics",
+  "semiconductor",
+  "automation",
+  "quantum",
+  "deep tech",
+];
+
 export const OUTREACH_FACTORS: readonly OutreachFactorMeta[] = [
   {
     id: "internationalHiring",
     label: "International hiring score",
-    description: "Uses the person’s score, else their primary employer’s score, when present.",
+    description:
+      "0–100 from the H-1B / LLM hiring signal on the person, falling back to their primary employer.",
+    defaultEnabled: true,
+  },
+  {
+    id: "emailAvailable",
+    label: "Email on file",
+    description: `+${OUTREACH_FACTOR_POINTS.emailAvailable} when a primary email is recorded; +${OUTREACH_FACTOR_POINTS.emailAvailableSecondaryOnly} when only a secondary email is.`,
+    defaultEnabled: true,
+  },
+  {
+    id: "startupBonus",
+    label: "Startup employer",
+    description: `+${OUTREACH_FACTOR_POINTS.startupBonus} when the primary employer is marked as a startup (vs established).`,
+    defaultEnabled: true,
+  },
+  {
+    id: "companyFunFacts",
+    label: "Company fun facts",
+    description: `+${OUTREACH_FACTOR_POINTS.companyFunFacts} when the primary employer has a description / fun fact you can hook on.`,
+    defaultEnabled: true,
+  },
+  {
+    id: "industryPreference",
+    label: "Preferred industry",
+    description: `+${OUTREACH_FACTOR_POINTS.industryPreference} when the company's industry matches your interests (aviation, software, fintech, engineering, …).`,
     defaultEnabled: true,
   },
 ] as const;
@@ -90,6 +164,49 @@ export function buildPrimaryEmployerMap(data: NetworkData): Map<string, CompanyN
   return out;
 }
 
+/**
+ * Map of company id → industry label (the linked entity node's label).
+ * Companies with no entity edge are absent from the map. If a company has
+ * multiple entity edges we keep the lexicographically smallest entity id for
+ * deterministic ordering, mirroring `buildPrimaryEmployerMap`.
+ */
+export function buildIndustryByCompanyMap(data: NetworkData): Map<string, string> {
+  const nodesById = new Map(data.nodes.map((n) => [n.id, n]));
+  const entitiesByCompany = new Map<string, EntityNetworkNode[]>();
+
+  for (const e of data.edges) {
+    const s = nodesById.get(e.source);
+    const t = nodesById.get(e.target);
+    let entity: EntityNetworkNode | undefined;
+    let companyId: string | undefined;
+    if (s?.kind === "entity" && t?.kind === "company") {
+      entity = s;
+      companyId = t.id;
+    } else if (s?.kind === "company" && t?.kind === "entity") {
+      entity = t;
+      companyId = s.id;
+    }
+    if (!entity || !companyId) continue;
+    const list = entitiesByCompany.get(companyId) ?? [];
+    list.push(entity);
+    entitiesByCompany.set(companyId, list);
+  }
+
+  const out = new Map<string, string>();
+  for (const [companyId, entities] of entitiesByCompany) {
+    const pick = [...entities].sort((a, b) => a.id.localeCompare(b.id))[0];
+    if (pick) out.set(companyId, pick.label);
+  }
+  return out;
+}
+
+/** True when `industryLabel` matches any keyword in {@link INDUSTRY_PREFERENCE_KEYWORDS}. */
+export function industryMatchesPreference(industryLabel: string | undefined): boolean {
+  if (!industryLabel) return false;
+  const haystack = industryLabel.toLowerCase();
+  return INDUSTRY_PREFERENCE_KEYWORDS.some((kw) => haystack.includes(kw));
+}
+
 export type OutreachScoreResult = {
   total: number;
   breakdown: Partial<Record<OutreachFactorId, number | null>>;
@@ -97,11 +214,14 @@ export type OutreachScoreResult = {
 
 /**
  * Aggregate outreach score for one person. Disabled factors contribute nothing to `total`
- * and are omitted from `breakdown` (or null when you want to show “off” in UI — here omitted).
+ * and are omitted from `breakdown`. Each enabled factor is recorded in `breakdown` either
+ * as the points awarded or `null` when the data needed for the factor is missing
+ * (so the UI can render an "—" pill instead of hiding it).
  */
 export function computeOutreachScore(
   person: PersonNetworkNode,
   employer: CompanyNetworkNode | undefined,
+  industryLabel: string | undefined,
   enabled: Set<OutreachFactorId>,
 ): OutreachScoreResult {
   const breakdown: Partial<Record<OutreachFactorId, number | null>> = {};
@@ -110,10 +230,60 @@ export function computeOutreachScore(
   if (enabled.has("internationalHiring")) {
     const raw = person.internationalHiringScore ?? employer?.internationalHiringScore;
     if (typeof raw === "number" && Number.isFinite(raw)) {
-      breakdown.internationalHiring = raw;
-      total += raw;
+      const capped = Math.min(OUTREACH_FACTOR_POINTS.internationalHiring, Math.max(0, raw));
+      breakdown.internationalHiring = capped;
+      total += capped;
     } else {
       breakdown.internationalHiring = null;
+    }
+  }
+
+  if (enabled.has("emailAvailable")) {
+    const hasPrimary = typeof person.email === "string" && person.email.trim().length > 0;
+    const hasSecondary =
+      typeof person.secondaryEmail === "string" && person.secondaryEmail.trim().length > 0;
+    if (hasPrimary) {
+      breakdown.emailAvailable = OUTREACH_FACTOR_POINTS.emailAvailable;
+      total += OUTREACH_FACTOR_POINTS.emailAvailable;
+    } else if (hasSecondary) {
+      breakdown.emailAvailable = OUTREACH_FACTOR_POINTS.emailAvailableSecondaryOnly;
+      total += OUTREACH_FACTOR_POINTS.emailAvailableSecondaryOnly;
+    } else {
+      breakdown.emailAvailable = 0;
+    }
+  }
+
+  if (enabled.has("startupBonus")) {
+    if (employer?.startupStatus === "startup") {
+      breakdown.startupBonus = OUTREACH_FACTOR_POINTS.startupBonus;
+      total += OUTREACH_FACTOR_POINTS.startupBonus;
+    } else if (employer) {
+      breakdown.startupBonus = 0;
+    } else {
+      breakdown.startupBonus = null;
+    }
+  }
+
+  if (enabled.has("companyFunFacts")) {
+    const desc = employer?.description?.trim();
+    if (desc && desc.length > 0) {
+      breakdown.companyFunFacts = OUTREACH_FACTOR_POINTS.companyFunFacts;
+      total += OUTREACH_FACTOR_POINTS.companyFunFacts;
+    } else if (employer) {
+      breakdown.companyFunFacts = 0;
+    } else {
+      breakdown.companyFunFacts = null;
+    }
+  }
+
+  if (enabled.has("industryPreference")) {
+    if (industryMatchesPreference(industryLabel)) {
+      breakdown.industryPreference = OUTREACH_FACTOR_POINTS.industryPreference;
+      total += OUTREACH_FACTOR_POINTS.industryPreference;
+    } else if (industryLabel) {
+      breakdown.industryPreference = 0;
+    } else {
+      breakdown.industryPreference = null;
     }
   }
 
@@ -123,6 +293,8 @@ export function computeOutreachScore(
 export type OutreachRankRow = {
   person: PersonNetworkNode;
   primaryEmployer?: CompanyNetworkNode;
+  /** Industry label of the primary employer (linked entity node), if any. */
+  primaryEmployerIndustry?: string;
   total: number;
   breakdown: Partial<Record<OutreachFactorId, number | null>>;
 };
@@ -132,12 +304,21 @@ export function buildOutreachRankRows(
   enabled: Set<OutreachFactorId>,
 ): OutreachRankRow[] {
   const employerByPerson = buildPrimaryEmployerMap(network);
+  const industryByCompany = buildIndustryByCompanyMap(network);
   const people = network.nodes.filter((n): n is PersonNetworkNode => n.kind === "person");
 
   const rows: OutreachRankRow[] = people.map((person) => {
     const primaryEmployer = employerByPerson.get(person.id);
-    const { total, breakdown } = computeOutreachScore(person, primaryEmployer, enabled);
-    return { person, primaryEmployer, total, breakdown };
+    const primaryEmployerIndustry = primaryEmployer
+      ? industryByCompany.get(primaryEmployer.id)
+      : undefined;
+    const { total, breakdown } = computeOutreachScore(
+      person,
+      primaryEmployer,
+      primaryEmployerIndustry,
+      enabled,
+    );
+    return { person, primaryEmployer, primaryEmployerIndustry, total, breakdown };
   });
 
   rows.sort((a, b) => {

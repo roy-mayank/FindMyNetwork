@@ -1,20 +1,19 @@
-# Careershift (local session export)
+# CareerShift and LinkedIn (manual research)
 
 Overview of gathering data and using **Claude insights**: [manual-enrichment.md](./manual-enrichment.md).
 
-Careershift is typically accessed through your university SSO. **Do not** commit passwords, cookies, or `storageState` files to git.
+CareerShift is typically accessed through your university SSO. **Do not** commit passwords, cookies, or `storageState` files to git.
 
-## Recommended flow
+## Data collection shortcuts
 
-1. Use the in-app **Data collection** or person modal fields to **paste** email addresses or CSV snippets you already exported from Careershift. Those go through `POST /api/network/enrich-insights` as `careershift_text` artifacts.
+On **Data collection → Add company**, type a company name. When the field is non-empty, the form shows:
 
-## Optional: Playwright on your machine
+- **LinkedIn companies** — opens LinkedIn company search with your typed name (full results usually require a logged-in session).
+- **Open CareerShift contacts** — opens CareerShift’s Contacts Search UI (`/App/Contacts/Search`). Their SPA does **not** accept the query string in the URL, so the app cannot pre-fill search from a link alone.
+- **Copy company name** — copies the name to the clipboard; switch to the CareerShift tab and paste into their search field.
 
-If you need bulk export:
+After you find contacts, paste exports or snippets into the person modal **Claude insights** (artifact type **Careershift paste**) or call `POST /api/network/enrich-insights` with `careershift_text` artifacts.
 
-1. Install Playwright locally (`npm init playwright@latest` in a scratch folder, or add devDependency only on your laptop).
-2. Log in once with `npx playwright codegen` and save authenticated storage: `await context.storageState({ path: 'careershift-state.json' })`.
-3. Run a personal script that navigates Careershift, copies visible contact rows, and writes a `.json` or `.csv` file.
-4. Paste that file’s contents into the enrich-insights textarea—never upload `careershift-state.json` to a shared server.
+## Optional: bulk export on your machine
 
-Review your university IT acceptable-use policy before automating SSO-backed tools.
+If you need scripted export from CareerShift, use tooling **only on your own machine**, respect SSO terms, and never commit session files. One approach is local Playwright with a saved authenticated storage state, outputting JSON/CSV that you then paste into enrich-insights—not checked into this repo.

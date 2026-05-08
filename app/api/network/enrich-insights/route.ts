@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import { getDb } from "@/db/index";
 import { edges, nodes, personProfile } from "@/db/schema";
-import { fetchApifyDatasetItemsByRunId } from "@/lib/connectors/apify";
 import { loadEmployerSnapshotRow } from "@/lib/hiring-signals/snapshot-loader";
 import { extractEnrichmentFacts } from "@/lib/llm/claude";
 import { enrichArtifactInputSchema } from "@/lib/llm/schemas/enrichment-extraction";
@@ -24,13 +23,12 @@ const requestSchema = z
     personId: z.string().min(1).optional(),
     companyId: z.string().min(1).optional(),
     artifacts: z.array(enrichArtifactInputSchema).max(20).default([]),
-    apifyRunId: z.string().min(1).optional(),
   })
   .refine((d) => Boolean(d.personId) !== Boolean(d.companyId), {
     message: "Provide exactly one of personId or companyId",
   })
-  .refine((d) => d.artifacts.length > 0 || Boolean(d.apifyRunId?.trim()), {
-    message: "Provide at least one artifact and/or apifyRunId",
+  .refine((d) => d.artifacts.length > 0, {
+    message: "Provide at least one artifact",
     path: ["artifacts"],
   });
 
@@ -54,25 +52,8 @@ export async function POST(request: Request) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { personId, companyId, artifacts: bodyArtifacts, apifyRunId } = parsed.data;
+  const { personId, companyId, artifacts: bodyArtifacts } = parsed.data;
   const artifacts = [...bodyArtifacts];
-
-  if (apifyRunId) {
-    try {
-      const items = await fetchApifyDatasetItemsByRunId(apifyRunId);
-      const json = JSON.stringify(items);
-      artifacts.push({
-        id: `apify-${apifyRunId}`,
-        type: "apify_dataset",
-        content: json.length > 200_000 ? `${json.slice(0, 199_900)}\n…[truncated]` : json,
-      });
-    } catch (e) {
-      return Response.json(
-        { error: e instanceof Error ? e.message : "Apify fetch failed" },
-        { status: 502 },
-      );
-    }
-  }
 
   const db = getDb();
 
@@ -166,10 +147,7 @@ export async function POST(request: Request) {
         ],
       };
 
-      const evidenceUrls = [
-        ...artifacts.map((a) => `urn:artifact:${a.id}`),
-        ...(apifyRunId ? [`urn:apify:run:${apifyRunId}`] : []),
-      ];
+      const evidenceUrls = [...artifacts.map((a) => `urn:artifact:${a.id}`)];
 
       const created = await createEnrichmentProposal(db, {
         personId,
@@ -228,10 +206,7 @@ export async function POST(request: Request) {
       ],
     };
 
-    const evidenceUrls = [
-      ...artifacts.map((a) => `urn:artifact:${a.id}`),
-      ...(apifyRunId ? [`urn:apify:run:${apifyRunId}`] : []),
-    ];
+    const evidenceUrls = [...artifacts.map((a) => `urn:artifact:${a.id}`)];
 
       const created = await createEnrichmentProposal(db, {
         personId: undefined,

@@ -37,6 +37,9 @@ const personInputSchema = baseSchema.extend({
     .url("LinkedIn URL must be a valid URL")
     .optional()
     .or(z.literal("")),
+  email: z
+    .union([z.literal(""), z.string().email("Email must be a valid address")])
+    .optional(),
   alumniUrl: z
     .string()
     .url("Alumni URL must be a valid URL")
@@ -188,6 +191,7 @@ export async function POST(request: Request) {
         {
           personId: nodeId,
           notes: trimOrNull(input.notes),
+          email: trimOrNull(input.email),
           lastOutreachAt: trimOrNull(input.lastReachedAt),
           lastAttemptAt: trimOrNull(input.lastAttemptAt),
           enrichmentStatus: "none",

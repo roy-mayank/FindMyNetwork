@@ -53,7 +53,6 @@ export function PersonModal({
   const [insightArtifactType, setInsightArtifactType] =
     useState<EnrichmentArtifactType>("linkedin_text");
   const [insightPaste, setInsightPaste] = useState("");
-  const [insightApifyRunId, setInsightApifyRunId] = useState("");
   const [insightBusy, setInsightBusy] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
@@ -212,10 +211,8 @@ export function PersonModal({
                   Claude insights
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-violet-900/80 dark:text-violet-200/90">
-                  Paste profile text, Careershift export, or OPT/H-1B tables you have rights to use. Optionally add
-                  a completed Apify run id (requires{" "}
-                  <code className="rounded bg-violet-100/80 px-0.5 dark:bg-violet-900/80">APIFY_API_TOKEN</code> on the
-                  server). Creates a pending proposal—review before apply.
+                  Paste profile text, Careershift export, or OPT/H-1B tables you have rights to use. Creates a
+                  pending proposal—review before apply.
                 </p>
                 <label className="mt-2 block text-[11px] font-medium text-violet-900 dark:text-violet-100">
                   Artifact type
@@ -240,43 +237,33 @@ export function PersonModal({
                   onChange={(e) => setInsightPaste(e.target.value)}
                   className="mt-2 w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-xs dark:border-violet-800 dark:bg-zinc-900"
                 />
-                <input
-                  placeholder="Apify actor run id (optional)"
-                  value={insightApifyRunId}
-                  onChange={(e) => setInsightApifyRunId(e.target.value)}
-                  className="mt-2 w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-xs dark:border-violet-800 dark:bg-zinc-900"
-                />
                 {insightError ? (
                   <p className="mt-2 text-[11px] text-red-600 dark:text-red-400">{insightError}</p>
                 ) : null}
                 <button
                   type="button"
-                  disabled={insightBusy || (!insightPaste.trim() && !insightApifyRunId.trim())}
+                  disabled={insightBusy || !insightPaste.trim()}
                   onClick={async () => {
                     setInsightError(null);
-                    if (!insightPaste.trim() && !insightApifyRunId.trim()) {
-                      setInsightError("Add pasted text and/or an Apify run id.");
+                    if (!insightPaste.trim()) {
+                      setInsightError("Add pasted text.");
                       return;
                     }
                     setInsightBusy(true);
                     try {
-                      const artifacts =
-                        insightPaste.trim().length > 0
-                          ? [
-                              {
-                                id: `paste-${Date.now()}`,
-                                type: insightArtifactType,
-                                content: insightPaste.trim(),
-                              },
-                            ]
-                          : [];
+                      const artifacts = [
+                        {
+                          id: `paste-${Date.now()}`,
+                          type: insightArtifactType,
+                          content: insightPaste.trim(),
+                        },
+                      ];
                       const res = await fetch("/api/network/enrich-insights", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
                           personId: node.id,
                           artifacts,
-                          apifyRunId: insightApifyRunId.trim() || undefined,
                         }),
                       });
                       if (!res.ok) {
@@ -284,7 +271,6 @@ export function PersonModal({
                         throw new Error(text || `HTTP ${res.status}`);
                       }
                       setInsightPaste("");
-                      setInsightApifyRunId("");
                       const rows = await listPendingProposalsAction(node.id);
                       setPendingCount(rows.length);
                       setProposals(

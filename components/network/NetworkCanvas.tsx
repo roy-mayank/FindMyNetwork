@@ -2,13 +2,15 @@
 
 import "@xyflow/react/dist/style.css";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
+  useEdgesState,
+  useNodesState,
   type NodeMouseHandler,
   type NodeTypes,
 } from "@xyflow/react";
@@ -19,6 +21,11 @@ import { GraphNode } from "@/components/network/nodes/GraphNode";
 import { PersonModal } from "@/components/network/PersonModal";
 
 const nodeTypes = { network: GraphNode } satisfies NodeTypes;
+
+const defaultEdgeOptions = {
+  type: "smoothstep" as const,
+  style: { strokeWidth: 1.5, strokeOpacity: 0.85 },
+};
 
 type NetworkCanvasProps = {
   data: NetworkData;
@@ -33,10 +40,18 @@ export function NetworkCanvas({
   clustered,
   groupBy,
 }: NetworkCanvasProps) {
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+  const built = useMemo(
     () => buildReactFlowElements(data, { clustered, groupBy }),
     [data, clustered, groupBy],
   );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(built.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(built.edges);
+
+  useEffect(() => {
+    setNodes(built.nodes);
+    setEdges(built.edges);
+  }, [built, setNodes, setEdges]);
 
   const [selected, setSelected] = useState<FlowNodePayload | null>(null);
 
@@ -47,15 +62,17 @@ export function NetworkCanvas({
   return (
     <div className="relative h-[min(78vh,820px)] w-full min-h-[480px] overflow-hidden rounded-3xl border-2 border-amber-200/70 bg-gradient-to-b from-white/95 to-sky-50/40 shadow-xl shadow-amber-200/20 ring-1 ring-white/50 dark:border-violet-500/30 dark:from-zinc-900/90 dark:to-violet-950/40 dark:shadow-violet-950/30 dark:ring-violet-500/10">
       <ReactFlow
-        key={`${clustered ? "clustered" : "raw"}-${groupBy}-${data.nodes.length}-${data.edges.length}`}
-        nodes={initialNodes}
-        edges={initialEdges}
+        nodes={nodes}
+        edges={edges}
         nodeTypes={nodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        defaultEdgeOptions={defaultEdgeOptions}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.35}
-        maxZoom={1.4}
+        minZoom={0.15}
+        maxZoom={2}
         className="rounded-2xl"
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1} />

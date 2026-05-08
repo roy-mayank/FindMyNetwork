@@ -19,6 +19,24 @@ const R_COMPANY_FALLBACK = 300;
 const R_PEOPLE = 86;
 const CLUSTER_OFFSET = { x: 190, y: 40 };
 
+/** Minimum chord between adjacent nodes on a ring (approx card width + gap). */
+const MIN_CHORD_ENTITY = 230;
+const MIN_CHORD_COMPANY = 220;
+const MIN_CHORD_PERSON = 180;
+const MIN_CHORD_CLUSTER = 220;
+
+/**
+ * Ensures ring radius is large enough so adjacent nodes (approx `minChord` apart on the arc) do not overlap.
+ */
+function ringRadius(baseRadius: number, count: number, minChord: number): number {
+  const n = Math.max(count, 1);
+  if (n <= 1) return baseRadius;
+  const sin = Math.sin(Math.PI / n);
+  if (sin < 1e-9) return baseRadius;
+  const needed = minChord / (2 * sin);
+  return Math.max(baseRadius, needed);
+}
+
 function neighborsOf(nodeId: string, edges: NetworkEdge[]): string[] {
   const out: string[] = [];
   for (const e of edges) {
@@ -59,7 +77,8 @@ export function computePositions(data: NetworkData): Map<string, { x: number; y:
 
   const meNb = neighborsOf(me.id, data.edges);
   const entityIds = meNb.filter((id) => data.nodes.find((n) => n.id === id)?.kind === "entity");
-  placeOnRing(entityIds, CENTER.x, CENTER.y, R_ENTITY, -Math.PI / 2, positions);
+  const rEntity = ringRadius(R_ENTITY, entityIds.length, MIN_CHORD_ENTITY);
+  placeOnRing(entityIds, CENTER.x, CENTER.y, rEntity, -Math.PI / 2, positions);
 
   const assignedCompanyIds = new Set<string>();
   for (const entityId of entityIds) {
@@ -73,11 +92,12 @@ export function computePositions(data: NetworkData): Map<string, { x: number; y:
     companyIds.forEach((id) => assignedCompanyIds.add(id));
 
     const towardCenter = Math.atan2(CENTER.y - entityPos.y, CENTER.x - entityPos.x);
+    const rCompanies = ringRadius(R_COMPANY_FROM_ENTITY, companyIds.length, MIN_CHORD_COMPANY);
     placeOnRing(
       companyIds,
       entityPos.x,
       entityPos.y,
-      R_COMPANY_FROM_ENTITY,
+      rCompanies,
       towardCenter - Math.PI / 3,
       positions,
     );
@@ -87,11 +107,12 @@ export function computePositions(data: NetworkData): Map<string, { x: number; y:
     (id) =>
       data.nodes.find((n) => n.id === id)?.kind === "company" && !assignedCompanyIds.has(id),
   );
+  const rFallback = ringRadius(R_COMPANY_FALLBACK, fallbackCompanyIds.length, MIN_CHORD_COMPANY);
   placeOnRing(
     fallbackCompanyIds,
     CENTER.x,
     CENTER.y,
-    R_COMPANY_FALLBACK,
+    rFallback,
     -Math.PI / 2 + 0.35,
     positions,
   );
@@ -103,7 +124,8 @@ export function computePositions(data: NetworkData): Map<string, { x: number; y:
       (id) => data.nodes.find((n) => n.id === id)?.kind === "person",
     );
     const towardCenter = Math.atan2(CENTER.y - pos.y, CENTER.x - pos.x);
-    placeOnRing(personIds, pos.x, pos.y, R_PEOPLE, towardCenter - Math.PI / 6, positions);
+    const rPeople = ringRadius(R_PEOPLE, personIds.length, MIN_CHORD_PERSON);
+    placeOnRing(personIds, pos.x, pos.y, rPeople, towardCenter - Math.PI / 6, positions);
   }
 
   const orphanStart = { x: CENTER.x + 420, y: CENTER.y - 200 };
@@ -333,8 +355,25 @@ function buildOutreachClusterElements(
       buckets.set(key, list);
     }
 
-    let idx = 0;
-    for (const [bucket, bucketMembers] of buckets.entries()) {
+    const bucketEntries = [...buckets.entries()];
+    const nBuckets = bucketEntries.length;
+    const baseAngle = Math.atan2(CLUSTER_OFFSET.y, CLUSTER_OFFSET.x);
+    const baseDist = Math.hypot(CLUSTER_OFFSET.x, CLUSTER_OFFSET.y);
+    const fanR = ringRadius(baseDist, nBuckets, MIN_CHORD_CLUSTER);
+
+    let startAngle: number;
+    let angleStep: number;
+    if (nBuckets <= 1) {
+      startAngle = baseAngle;
+      angleStep = 0;
+    } else {
+      const minAngularStep = 2 * Math.asin(Math.min(1, MIN_CHORD_CLUSTER / (2 * fanR)));
+      const span = Math.min(Math.PI * 0.85, (nBuckets - 1) * minAngularStep);
+      angleStep = span / (nBuckets - 1);
+      startAngle = baseAngle - span / 2;
+    }
+
+    bucketEntries.forEach(([bucket, bucketMembers], idx) => {
       const cluster = clusterNode(
         "outreach",
         `${companyId}:${bucket.toLowerCase().replace(/\s+/g, "_")}`,
@@ -342,10 +381,11 @@ function buildOutreachClusterElements(
         bucketMembers,
         byId,
       );
+      const angle = nBuckets <= 1 ? baseAngle : startAngle + idx * angleStep;
       nodes.push(
         toFlowNode(cluster, {
-          x: companyPos.x + CLUSTER_OFFSET.x + idx * 28,
-          y: companyPos.y + CLUSTER_OFFSET.y + idx * 28,
+          x: companyPos.x + fanR * Math.cos(angle),
+          y: companyPos.y + fanR * Math.sin(angle),
         }),
       );
       edges.push({
@@ -354,8 +394,7 @@ function buildOutreachClusterElements(
         target: cluster.id,
         animated: false,
       });
-      idx += 1;
-    }
+    });
   }
 
   return { nodes, edges };
@@ -405,17 +444,17 @@ function buildStartupClusterElements(
 
   const activeBuckets = bucketKeys.filter((k) => (membersByKey.get(k)?.size ?? 0) > 0);
   const nBuckets = Math.max(activeBuckets.length, 1);
+  const startupRingR = ringRadius(300, nBuckets, MIN_CHORD_CLUSTER);
   let idx = 0;
   for (const key of activeBuckets) {
     const memberIds = [...(membersByKey.get(key) ?? new Set())];
     memberIds.forEach((id) => usedMembers.add(id));
     const cluster = clusterNode("startup", key, bucketLabels[key], memberIds, byId);
     const angle = -Math.PI / 2 + (2 * Math.PI * idx) / nBuckets;
-    const radius = 300;
     nodes.push(
       toFlowNode(cluster, {
-        x: mePos.x + radius * Math.cos(angle),
-        y: mePos.y + radius * Math.sin(angle),
+        x: mePos.x + startupRingR * Math.cos(angle),
+        y: mePos.y + startupRingR * Math.sin(angle),
       }),
     );
     if (me) {

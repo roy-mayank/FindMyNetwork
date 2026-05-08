@@ -8,6 +8,10 @@ import {
   resolveIndustryFromForm,
 } from "@/lib/industry-options";
 import {
+  careershiftContactsSearchUrl,
+  linkedinCompanySearchUrl,
+} from "@/lib/external-search-urls";
+import {
   DEFAULT_CONNECTION_THROUGH,
   type CompanyStartupStatus,
   type NetworkData,
@@ -81,6 +85,7 @@ function emptyPersonForm() {
     label: "",
     title: "",
     linkedinUrl: "",
+    email: "",
     companyId: "",
     companyQuery: "",
     connectionThrough: DEFAULT_CONNECTION_THROUGH,
@@ -133,6 +138,20 @@ export function CollectForms() {
   const [companyFlash, setCompanyFlash] = useState(false);
   const [personFlash, setPersonFlash] = useState(false);
   const [updateFlash, setUpdateFlash] = useState(false);
+  const [companyResearchCopied, setCompanyResearchCopied] = useState(false);
+
+  type ScrapeStatus =
+    | { state: "idle" }
+    | { state: "running"; companyName: string }
+    | {
+        state: "done";
+        companyName: string;
+        score: number | null;
+        matchedCount: number;
+        reason?: string;
+      }
+    | { state: "error"; companyName: string; reason: string };
+  const [scrapeStatus, setScrapeStatus] = useState<ScrapeStatus>({ state: "idle" });
 
   const load = useCallback(async () => {
     setLoadError(null);
@@ -149,6 +168,49 @@ export function CollectForms() {
       setLoadError(e instanceof Error ? e.message : "Failed to load network");
     }
   }, []);
+
+  const runH1bScrape = useCallback(
+    async (companyId: string, companyName: string) => {
+      setScrapeStatus({ state: "running", companyName });
+      try {
+        const res = await fetch("/api/network/h1b-scrape", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId, companyName }),
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          setScrapeStatus({
+            state: "error",
+            companyName,
+            reason: text || `HTTP ${res.status}`,
+          });
+          return;
+        }
+        const data = (await res.json()) as {
+          ok?: boolean;
+          score?: number | null;
+          matchedCount?: number;
+          reason?: string;
+        };
+        setScrapeStatus({
+          state: "done",
+          companyName,
+          score: typeof data.score === "number" ? data.score : null,
+          matchedCount: typeof data.matchedCount === "number" ? data.matchedCount : 0,
+          reason: data.reason,
+        });
+        await load();
+      } catch (err) {
+        setScrapeStatus({
+          state: "error",
+          companyName,
+          reason: err instanceof Error ? err.message : "Network error",
+        });
+      }
+    },
+    [load],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -313,10 +375,27 @@ export function CollectForms() {
                 const text = await res.text();
                 throw new Error(text || `HTTP ${res.status}`);
               }
+              const saved = (await res.json().catch(() => null)) as
+                | { id?: string }
+                | null;
+              const newCompanyId = typeof saved?.id === "string" ? saved.id : "";
+              const newCompanyLabel = companyForm.label.trim();
+              const wasEstablished = companyForm.startupStatus === "established";
               setCompanyForm(emptyCompanyForm());
               await load();
               setCompanyFlash(true);
               window.setTimeout(() => setCompanyFlash(false), 4000);
+              if (newCompanyId) {
+                setPersonForm((f) => ({
+                  ...f,
+                  companyId: newCompanyId,
+                  companyQuery: newCompanyLabel,
+                }));
+                setTab("person");
+              }
+              if (newCompanyId && wasEstablished) {
+                void runH1bScrape(newCompanyId, newCompanyLabel);
+              }
             } catch (err) {
               setCompanyErr(err instanceof Error ? err.message : "Save failed");
             } finally {
@@ -325,16 +404,96 @@ export function CollectForms() {
           }}
         >
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <label className={labelClass}>
-              Company name
-              <input
-                required
-                value={companyForm.label}
-                onChange={(e) => setCompanyForm((f) => ({ ...f, label: e.target.value }))}
-                className={inputClass}
-                autoComplete="organization"
-              />
-            </label>
+            <div>
+              <label className={labelClass}>
+                Company name
+                <input
+                  required
+                  value={companyForm.label}
+                  onChange={(e) => setCompanyForm((f) => ({ ...f, label: e.target.value }))}
+                  className={inputClass}
+                  autoComplete="organization"
+                />
+              </label>
+              {companyForm.label.trim() ? (
+                <div className="mt-3 rounded-xl border border-sky-200/70 bg-sky-50/50 px-3 py-2.5 dark:border-sky-900/50 dark:bg-sky-950/30">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-sky-900/90 dark:text-sky-200/90">
+                    Research this company
+                  </p>
+                  <p className="mt-1 text-[11px] leading-snug text-zinc-600 dark:text-zinc-400">
+                    CareerShift does not put the search in the URL—copy the name, open CareerShift, then
+                    paste into their search field.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <a
+                      href={linkedinCompanySearchUrl(companyForm.label.trim())}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center rounded-full border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-900 shadow-sm transition hover:border-sky-500 hover:bg-sky-50 dark:border-sky-700 dark:bg-zinc-900 dark:text-sky-100 dark:hover:bg-zinc-800"
+                    >
+                      LinkedIn companies
+                    </a>
+                    <span className="inline-flex items-center gap-1">
+                      <a
+                        href={careershiftContactsSearchUrl()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center rounded-full border border-fuchsia-300 bg-white px-3 py-1.5 text-xs font-semibold text-fuchsia-900 shadow-sm transition hover:border-fuchsia-500 hover:bg-fuchsia-50 dark:border-fuchsia-700 dark:bg-zinc-900 dark:text-fuchsia-100 dark:hover:bg-zinc-800"
+                      >
+                        Open CareerShift contacts
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const t = companyForm.label.trim();
+                          try {
+                            await navigator.clipboard.writeText(t);
+                            setCompanyResearchCopied(true);
+                            window.setTimeout(() => setCompanyResearchCopied(false), 2500);
+                          } catch {
+                            setCompanyResearchCopied(false);
+                          }
+                        }}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-fuchsia-300 bg-white text-fuchsia-800 shadow-sm transition hover:border-fuchsia-500 hover:bg-fuchsia-50 dark:border-fuchsia-700 dark:bg-zinc-900 dark:text-fuchsia-200 dark:hover:bg-zinc-800"
+                        aria-label={companyResearchCopied ? "Copied" : "Copy company name"}
+                        title={companyResearchCopied ? "Copied" : "Copy company name"}
+                      >
+                        {companyResearchCopied ? (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-3.5 w-3.5"
+                            aria-hidden
+                          >
+                            <path d="M20 6L9 17l-5-5" />
+                          </svg>
+                        ) : (
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-3.5 w-3.5"
+                            aria-hidden
+                          >
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        )}
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
             <label className={labelClass}>
               Industry
               <select
@@ -473,8 +632,23 @@ export function CollectForms() {
         >
         <h2 className="text-lg font-bold text-emerald-900 dark:text-emerald-100">Add person</h2>
         <p className="mt-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-          Name, title, LinkedIn, then pick their company from your list—type to filter.
+          Name, title, LinkedIn, optional email, then pick their company from your list—type to
+          filter.
         </p>
+        {scrapeStatus.state !== "idle" ? (
+          <p
+            className="mt-3 rounded-xl border-2 border-sky-200/80 bg-gradient-to-r from-sky-50 to-violet-50 px-4 py-2.5 text-xs font-medium text-sky-950 shadow-sm dark:border-sky-500/30 dark:from-sky-950/40 dark:to-violet-950/30 dark:text-sky-100"
+            role="status"
+          >
+            {scrapeStatus.state === "running"
+              ? `Computing intl score for ${scrapeStatus.companyName}…`
+              : scrapeStatus.state === "done"
+                ? scrapeStatus.score === null
+                  ? `${scrapeStatus.companyName}: no H-1B match found${scrapeStatus.reason ? ` (${scrapeStatus.reason})` : ""}.`
+                  : `${scrapeStatus.companyName} intl score: ${scrapeStatus.score} (matched ${scrapeStatus.matchedCount} employer ${scrapeStatus.matchedCount === 1 ? "entry" : "entries"})`
+                : `Could not compute intl score for ${scrapeStatus.companyName}: ${scrapeStatus.reason}`}
+          </p>
+        ) : null}
         {personFlash ? (
           <p
             className="mt-3 rounded-xl border-2 border-emerald-300/80 bg-gradient-to-r from-emerald-50 to-teal-50 px-4 py-3 text-sm font-semibold text-emerald-950 shadow-md dark:border-emerald-500/40 dark:from-emerald-950/40 dark:to-teal-950/30 dark:text-emerald-100"
@@ -499,6 +673,7 @@ export function CollectForms() {
                   label: personForm.label,
                   title: personForm.title.trim() || undefined,
                   linkedinUrl: personForm.linkedinUrl.trim() || undefined,
+                  email: personForm.email.trim() || undefined,
                   companyId: personForm.companyId,
                   connectionThrough:
                     personForm.connectionThrough.trim() || DEFAULT_CONNECTION_THROUGH,
@@ -546,6 +721,17 @@ export function CollectForms() {
                 onChange={(e) => setPersonForm((f) => ({ ...f, linkedinUrl: e.target.value }))}
                 className={inputClass}
                 placeholder="https://www.linkedin.com/in/…"
+              />
+            </label>
+            <label className={`sm:col-span-2 ${labelClass}`}>
+              Email <span className={optMuted}>(optional)</span>
+              <input
+                type="email"
+                value={personForm.email}
+                onChange={(e) => setPersonForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass}
+                autoComplete="email"
+                placeholder="name@company.com"
               />
             </label>
             <label className={`sm:col-span-2 ${labelClass}`}>
