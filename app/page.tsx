@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AppLogoLockup } from "@/components/layout/AppLogo";
+
 export default function Home() {
   return (
     <div className="relative flex min-h-full flex-1 flex-col overflow-hidden bg-gradient-to-br from-amber-50 via-white to-sky-100 text-zinc-900 dark:from-slate-950 dark:via-violet-950/30 dark:to-sky-950/40 dark:text-zinc-50">
@@ -12,9 +14,9 @@ export default function Home() {
           <p className="text-xs font-semibold uppercase tracking-widest text-violet-600 dark:text-amber-300/90">
             A little less grind, a little more clarity
           </p>
-          <h1 className="mt-2 bg-gradient-to-r from-violet-600 via-fuchsia-600 to-cyan-600 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl dark:from-sky-300 dark:via-fuchsia-300 dark:to-amber-200">
-            FindMyNetwork
-          </h1>
+          <div className="mt-4">
+            <AppLogoLockup layout="vertical" size="hero" />
+          </div>
           <p className="mt-4 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
             Log who you know and where they work, then see it on a map when you are ready to reach out.
           </p>

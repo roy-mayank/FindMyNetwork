@@ -70,7 +70,7 @@ export const OUTREACH_FACTORS: readonly OutreachFactorMeta[] = [
     id: "internationalHiring",
     label: "International hiring score",
     description:
-      "0–100 from the H-1B / LLM hiring signal on the person, falling back to their primary employer.",
+      "0–100 from the H-1B / LLM hiring signal on the person, falling back to their primary employer. Startup employers count as the full score automatically.",
     defaultEnabled: true,
   },
   {
@@ -228,8 +228,12 @@ export function computeOutreachScore(
   let total = 0;
 
   if (enabled.has("internationalHiring")) {
+    const startupEmployer = employer?.startupStatus === "startup";
     const raw = person.internationalHiringScore ?? employer?.internationalHiringScore;
-    if (typeof raw === "number" && Number.isFinite(raw)) {
+    if (startupEmployer) {
+      breakdown.internationalHiring = OUTREACH_FACTOR_POINTS.internationalHiring;
+      total += OUTREACH_FACTOR_POINTS.internationalHiring;
+    } else if (typeof raw === "number" && Number.isFinite(raw)) {
       const capped = Math.min(OUTREACH_FACTOR_POINTS.internationalHiring, Math.max(0, raw));
       breakdown.internationalHiring = capped;
       total += capped;

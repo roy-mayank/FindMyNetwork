@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { NetworkGlyph } from "@/components/layout/AppLogo";
 import { JoyShell, joyTitleClassName } from "@/components/layout/JoyShell";
 import { NetworkHome } from "@/components/network/NetworkHome";
 
@@ -7,7 +8,12 @@ export default function GraphPage() {
   return (
     <JoyShell
       eyebrow="Your network map"
-      title={<h1 className={joyTitleClassName()}>FindMyNetwork</h1>}
+      title={
+        <h1 className="flex items-center gap-3 sm:gap-4">
+          <NetworkGlyph className="h-9 w-9 shrink-0 sm:h-11 sm:w-11" />
+          <span className={joyTitleClassName()}>FindMyNetwork</span>
+        </h1>
+      }
       description={
         <>
           <p>

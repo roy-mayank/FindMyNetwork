@@ -29,6 +29,12 @@ export default function CollectPage() {
             Graph
           </Link>
           <Link
+            href="/outreach"
+            className="rounded-full border-2 border-fuchsia-300/80 bg-white/90 px-4 py-2 text-sm font-semibold text-fuchsia-900 shadow-sm transition hover:border-fuchsia-500 hover:bg-fuchsia-50/90 dark:border-fuchsia-500/40 dark:bg-zinc-900/80 dark:text-fuchsia-100 dark:hover:bg-zinc-900"
+          >
+            Outreach
+          </Link>
+          <Link
             href="/analytics"
             className="rounded-full border-2 border-teal-300/80 bg-white/90 px-4 py-2 text-sm font-semibold text-teal-900 shadow-sm transition hover:border-teal-500 hover:bg-teal-50/90 dark:border-teal-500/40 dark:bg-zinc-900/80 dark:text-teal-100 dark:hover:bg-zinc-900"
           >

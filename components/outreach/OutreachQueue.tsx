@@ -111,8 +111,11 @@ export function OutreachQueue() {
     await load();
   }, [load, selectedRow]);
 
+  const sidebarClass =
+    "flex shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:w-64 xl:w-[17rem]";
+
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 lg:flex-row lg:items-start lg:gap-6 xl:gap-8">
       <OutreachPersonDetailModal
         open={selectedRow != null}
         row={selectedRow}
@@ -120,8 +123,50 @@ export function OutreachQueue() {
         onLater={() => setSelectedRow(null)}
         onComplete={completeSelected}
       />
-      <OutreachSessionTimer />
+      <aside className={`order-2 lg:order-none ${sidebarClass}`}>
+        <section className="rounded-xl border border-fuchsia-200/60 bg-white/85 p-2.5 shadow-md dark:border-fuchsia-500/25 dark:bg-zinc-900/75">
+          <div className="flex items-start justify-between gap-1">
+            <h2 className="text-[10px] font-bold uppercase tracking-wide text-fuchsia-900 dark:text-fuchsia-200">
+              Score factors
+            </h2>
+            <button
+              type="button"
+              onClick={resetFactors}
+              className="shrink-0 text-[9px] font-medium text-zinc-500 underline-offset-2 hover:text-fuchsia-700 hover:underline dark:text-zinc-400 dark:hover:text-fuchsia-300"
+            >
+              All on
+            </button>
+          </div>
+          <p className="mt-1 text-[9px] leading-snug text-zinc-500 dark:text-zinc-400">
+            Unchecked = left out of ranking. Hover a row for details.
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {OUTREACH_FACTORS.map((f) => {
+              const included = !disabledFactors.has(f.id);
+              return (
+                <li key={f.id}>
+                  <label
+                    className="flex cursor-pointer items-start gap-1.5"
+                    title={f.description}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-3 w-3 shrink-0 rounded border-fuchsia-300 text-fuchsia-600 focus:ring-fuchsia-500 dark:border-fuchsia-600 dark:bg-zinc-900"
+                      checked={included}
+                      onChange={(e) => toggleFactor(f.id, e.target.checked)}
+                    />
+                    <span className="min-w-0 text-[11px] font-medium leading-tight text-zinc-800 dark:text-zinc-200">
+                      {f.label}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </aside>
 
+      <div className="order-1 min-w-0 flex-1 flex flex-col gap-6 lg:order-none">
       {loadError ? (
         <div className="rounded-2xl border border-rose-300/80 bg-rose-50/90 p-5 text-sm text-rose-950 dark:border-rose-500/40 dark:bg-rose-950/40 dark:text-rose-100">
           {loadError}
@@ -165,50 +210,6 @@ export function OutreachQueue() {
           </button>
         </div>
       </div>
-
-      <section className="rounded-2xl border border-fuchsia-200/60 bg-white/80 p-5 shadow-md dark:border-fuchsia-500/25 dark:bg-zinc-900/70">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-fuchsia-900 dark:text-fuchsia-200">
-            Heuristic factors
-          </h2>
-          <button
-            type="button"
-            onClick={resetFactors}
-            className="text-xs font-medium text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-400"
-          >
-            Enable all
-          </button>
-        </div>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-          Uncheck a factor to remove it from the score (rankings ignore it entirely). Scoring is still a
-          work in progress.
-        </p>
-        <ul className="mt-4 space-y-3">
-          {OUTREACH_FACTORS.map((f) => {
-            const included = !disabledFactors.has(f.id);
-            return (
-              <li key={f.id} className="flex gap-3">
-                <label className="flex cursor-pointer items-start gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-1 h-4 w-4 rounded border-fuchsia-300 text-fuchsia-600 focus:ring-fuchsia-500 dark:border-fuchsia-600 dark:bg-zinc-900"
-                    checked={included}
-                    onChange={(e) => toggleFactor(f.id, e.target.checked)}
-                  />
-                  <span>
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">{f.label}</span>
-                    {f.description ? (
-                      <span className="mt-0.5 block text-xs text-zinc-600 dark:text-zinc-400">
-                        {f.description}
-                      </span>
-                    ) : null}
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
 
       <section className="rounded-2xl border border-zinc-200/80 bg-white/80 dark:border-zinc-700/80 dark:bg-zinc-900/60">
         <div className="border-b border-zinc-200/80 px-4 py-3 dark:border-zinc-700/80">
@@ -267,6 +268,11 @@ export function OutreachQueue() {
       </section>
         </>
       )}
+      </div>
+
+      <aside className={`order-3 lg:order-none ${sidebarClass}`}>
+        <OutreachSessionTimer compact />
+      </aside>
     </div>
   );
 }
