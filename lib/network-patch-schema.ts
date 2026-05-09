@@ -75,6 +75,7 @@ export const personProfilePatchSchema = z.object({
   lastAttemptAt: z.string().nullable().optional(),
   lastOutreachAt: z.string().nullable().optional(),
   enrichmentStatus: enrichmentStatusSchema.optional(),
+  pennGrad: z.boolean().optional(),
 });
 
 export const networkPatchSchema = z.object({

@@ -86,6 +86,7 @@ function emptyPersonForm() {
     title: "",
     linkedinUrl: "",
     email: "",
+    pennGrad: false,
     companyId: "",
     companyQuery: "",
     connectionThrough: DEFAULT_CONNECTION_THROUGH,
@@ -98,6 +99,7 @@ function emptyPersonUpdateForm() {
     label: "",
     title: "",
     linkedinUrl: "",
+    pennGrad: false,
     companyId: "",
     companyQuery: "",
     connectionThrough: DEFAULT_CONNECTION_THROUGH,
@@ -677,6 +679,7 @@ export function CollectForms() {
                   companyId: personForm.companyId,
                   connectionThrough:
                     personForm.connectionThrough.trim() || DEFAULT_CONNECTION_THROUGH,
+                  pennGrad: personForm.pennGrad,
                 }),
               });
               if (!res.ok) {
@@ -733,6 +736,21 @@ export function CollectForms() {
                 autoComplete="email"
                 placeholder="name@company.com"
               />
+            </label>
+            <label className={`flex cursor-pointer items-start gap-3 sm:col-span-2 ${labelClass}`}>
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-fuchsia-300 text-fuchsia-600 focus:ring-fuchsia-500 dark:border-fuchsia-600 dark:bg-zinc-900"
+                checked={personForm.pennGrad}
+                onChange={(e) => setPersonForm((f) => ({ ...f, pennGrad: e.target.checked }))}
+              />
+              <span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100">Penn grad</span>
+                <span className="mt-0.5 block text-[11px] font-normal normal-case leading-snug text-zinc-600 dark:text-zinc-400">
+                  University of Pennsylvania (any school). Adds a fixed bonus on the outreach queue
+                  (not a toggleable score factor).
+                </span>
+              </span>
             </label>
             <label className={`sm:col-span-2 ${labelClass}`}>
               Connection through
@@ -862,6 +880,7 @@ export function CollectForms() {
                   lastOutreachScore: updateForm.lastOutreachScore.trim() || undefined,
                   lastOutreachAt: updateForm.lastOutreachAt.trim() || undefined,
                   lastAttemptAt: updateForm.lastAttemptAt.trim() || undefined,
+                  pennGrad: updateForm.pennGrad,
                 }),
               });
               if (!res.ok) {
@@ -913,6 +932,7 @@ export function CollectForms() {
                       : "",
                   lastOutreachAt: p?.lastOutreachAt?.slice(0, 10) ?? "",
                   lastAttemptAt: p?.lastAttemptAt?.slice(0, 10) ?? "",
+                  pennGrad: p?.pennGrad === true,
                 });
               }}
               className={inputClass}
@@ -957,6 +977,22 @@ export function CollectForms() {
                     }
                     className={inputClass}
                   />
+                </label>
+                <label className={`flex cursor-pointer items-start gap-3 sm:col-span-2 ${labelClass}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 rounded border-fuchsia-300 text-fuchsia-600 focus:ring-fuchsia-500 dark:border-fuchsia-600 dark:bg-zinc-900"
+                    checked={updateForm.pennGrad}
+                    onChange={(e) =>
+                      setUpdateForm((f) => ({ ...f, pennGrad: e.target.checked }))
+                    }
+                  />
+                  <span>
+                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">Penn grad</span>
+                    <span className="mt-0.5 block text-[11px] font-normal normal-case leading-snug text-zinc-600 dark:text-zinc-400">
+                      UPenn alum — fixed outreach queue bonus when checked.
+                    </span>
+                  </span>
                 </label>
               </div>
 

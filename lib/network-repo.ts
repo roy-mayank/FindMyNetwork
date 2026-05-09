@@ -175,6 +175,7 @@ function rowToNetworkNode(
     lastAttemptAt: extras.person?.lastAttemptAt ?? undefined,
     lastOutreachAt: extras.person?.lastOutreachAt ?? undefined,
     enrichmentStatus: extras.person?.enrichmentStatus ?? undefined,
+    ...(extras.person?.pennGrad === true ? { pennGrad: true as const } : {}),
   };
 }
 
@@ -389,6 +390,8 @@ export function applyNetworkPatch(db: Db, patch: NetworkPatchInput): void {
           p.enrichmentStatus !== undefined
             ? p.enrichmentStatus
             : (existing?.enrichmentStatus ?? "none");
+        const pennGrad =
+          p.pennGrad !== undefined ? p.pennGrad : (existing?.pennGrad ?? false);
         tx.insert(personProfile)
           .values({
             personId: p.personId,
@@ -400,6 +403,7 @@ export function applyNetworkPatch(db: Db, patch: NetworkPatchInput): void {
             lastAttemptAt,
             lastOutreachAt,
             enrichmentStatus,
+            pennGrad,
           })
           .onConflictDoUpdate({
             target: personProfile.personId,
@@ -412,6 +416,7 @@ export function applyNetworkPatch(db: Db, patch: NetworkPatchInput): void {
               lastAttemptAt,
               lastOutreachAt,
               enrichmentStatus,
+              pennGrad,
             },
           })
           .run();

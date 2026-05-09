@@ -17,6 +17,12 @@ export default function CollectPage() {
       actions={
         <>
           <Link
+            href="/collect/inbox"
+            className="rounded-full border-2 border-amber-300/90 bg-white/90 px-4 py-2 text-sm font-semibold text-amber-950 shadow-sm transition hover:border-amber-500 hover:bg-amber-50/90 dark:border-amber-500/40 dark:bg-zinc-900/80 dark:text-amber-100 dark:hover:bg-zinc-900"
+          >
+            Inbox
+          </Link>
+          <Link
             href="/"
             className="rounded-full border-2 border-violet-200/80 bg-white/90 px-4 py-2 text-sm font-semibold text-violet-800 shadow-sm transition hover:border-violet-400 hover:bg-white dark:border-violet-500/40 dark:bg-zinc-900/80 dark:text-violet-100 dark:hover:border-amber-400/60 dark:hover:bg-zinc-900"
           >

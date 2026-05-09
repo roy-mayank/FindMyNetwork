@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const nodes = sqliteTable("nodes", {
   id: text("id").primaryKey(),
@@ -86,6 +86,8 @@ export const personProfile = sqliteTable("person_profile", {
   })
     .notNull()
     .default("none"),
+  /** UPenn alum — used for a fixed outreach-score bump (not a toggleable factor). */
+  pennGrad: integer("penn_grad", { mode: "boolean" }).notNull().default(false),
 });
 
 export const enrichmentProposals = sqliteTable(
@@ -105,6 +107,35 @@ export const enrichmentProposals = sqliteTable(
       .default(sql`(datetime('now'))`),
   },
   (t) => [index("enrichment_proposals_person_idx").on(t.personId)],
+);
+
+/** Queued page captures from the browser extension; confirm or dismiss from /collect/inbox. */
+export const pendingCaptures = sqliteTable(
+  "pending_captures",
+  {
+    id: text("id").primaryKey(),
+    status: text("status", {
+      enum: ["pending", "dismissed", "applied"],
+    })
+      .notNull()
+      .default("pending"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    sourceUrl: text("source_url").notNull(),
+    pageKind: text("page_kind", {
+      enum: ["yc_company", "yc_jobs", "generic"],
+    })
+      .notNull()
+      .default("generic"),
+    suggestedKind: text("suggested_kind", {
+      enum: ["company", "person", "unknown"],
+    })
+      .notNull()
+      .default("unknown"),
+    payloadJson: text("payload_json").notNull().default("{}"),
+  },
+  (t) => [index("pending_captures_status_idx").on(t.status)],
 );
 
 export const emailDrafts = sqliteTable(

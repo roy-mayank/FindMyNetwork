@@ -48,6 +48,21 @@ export const OUTREACH_FACTOR_POINTS = {
  * label (the linked entity node's label). Edit this list to retune which
  * industries get the preference bump.
  */
+/**
+ * Fixed outreach points always applied when the flag is set (no sidebar toggle).
+ * Kept separate from {@link OUTREACH_FACTOR_IDS}.
+ */
+export const OUTREACH_INTRINSIC_POINTS = {
+  /** UPenn alum — shared school hook for outreach ranking. */
+  pennGrad: 35,
+} as const;
+
+export type OutreachIntrinsicId = keyof typeof OUTREACH_INTRINSIC_POINTS;
+
+export const OUTREACH_INTRINSIC_LABELS: Record<OutreachIntrinsicId, string> = {
+  pennGrad: "Penn grad",
+};
+
 export const INDUSTRY_PREFERENCE_KEYWORDS: readonly string[] = [
   "aviation",
   "aerospace",
@@ -210,6 +225,8 @@ export function industryMatchesPreference(industryLabel: string | undefined): bo
 export type OutreachScoreResult = {
   total: number;
   breakdown: Partial<Record<OutreachFactorId, number | null>>;
+  /** Always-on score components (not in factor toggles). */
+  intrinsic: Partial<Record<OutreachIntrinsicId, number>>;
 };
 
 /**
@@ -217,6 +234,7 @@ export type OutreachScoreResult = {
  * and are omitted from `breakdown`. Each enabled factor is recorded in `breakdown` either
  * as the points awarded or `null` when the data needed for the factor is missing
  * (so the UI can render an "—" pill instead of hiding it).
+ * {@link OUTREACH_INTRINSIC_POINTS} are always applied when data matches and appear in `intrinsic`.
  */
 export function computeOutreachScore(
   person: PersonNetworkNode,
@@ -225,7 +243,14 @@ export function computeOutreachScore(
   enabled: Set<OutreachFactorId>,
 ): OutreachScoreResult {
   const breakdown: Partial<Record<OutreachFactorId, number | null>> = {};
+  const intrinsic: Partial<Record<OutreachIntrinsicId, number>> = {};
   let total = 0;
+
+  if (person.pennGrad === true) {
+    const pts = OUTREACH_INTRINSIC_POINTS.pennGrad;
+    intrinsic.pennGrad = pts;
+    total += pts;
+  }
 
   if (enabled.has("internationalHiring")) {
     const startupEmployer = employer?.startupStatus === "startup";
@@ -291,7 +316,7 @@ export function computeOutreachScore(
     }
   }
 
-  return { total, breakdown };
+  return { total, breakdown, intrinsic };
 }
 
 export type OutreachRankRow = {
@@ -301,6 +326,7 @@ export type OutreachRankRow = {
   primaryEmployerIndustry?: string;
   total: number;
   breakdown: Partial<Record<OutreachFactorId, number | null>>;
+  intrinsic: Partial<Record<OutreachIntrinsicId, number>>;
 };
 
 export function buildOutreachRankRows(
@@ -316,13 +342,13 @@ export function buildOutreachRankRows(
     const primaryEmployerIndustry = primaryEmployer
       ? industryByCompany.get(primaryEmployer.id)
       : undefined;
-    const { total, breakdown } = computeOutreachScore(
+    const { total, breakdown, intrinsic } = computeOutreachScore(
       person,
       primaryEmployer,
       primaryEmployerIndustry,
       enabled,
     );
-    return { person, primaryEmployer, primaryEmployerIndustry, total, breakdown };
+    return { person, primaryEmployer, primaryEmployerIndustry, total, breakdown, intrinsic };
   });
 
   rows.sort((a, b) => {

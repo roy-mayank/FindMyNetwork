@@ -6,8 +6,10 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { listEmailDraftsAction } from "@/app/actions/network";
 import {
   OUTREACH_FACTORS,
+  OUTREACH_INTRINSIC_LABELS,
   allOutreachFactorIds,
   connectionThroughForPersonEmployer,
+  type OutreachIntrinsicId,
   type OutreachRankRow,
 } from "@/lib/outreach-heuristic";
 import type { CompanyNetworkNode, EmailDraft, NetworkData } from "@/lib/network-types";
@@ -182,6 +184,20 @@ export function OutreachPersonDetailModal({
                 <span className="ml-1 text-xs font-medium text-zinc-500">outreach score</span>
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {(Object.keys(row.intrinsic) as OutreachIntrinsicId[])
+                  .filter((id) => typeof row.intrinsic[id] === "number")
+                  .map((id) => {
+                    const v = row.intrinsic[id];
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex rounded-full border border-violet-200/80 bg-violet-50/90 px-2 py-0.5 text-[10px] font-medium text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-200"
+                      >
+                        {OUTREACH_INTRINSIC_LABELS[id]}
+                        {typeof v === "number" ? `: ${v}` : ""}
+                      </span>
+                    );
+                  })}
                 {allOutreachFactorIds()
                   .filter((id) => id in row.breakdown)
                   .map((id) => {
@@ -224,6 +240,9 @@ export function OutreachPersonDetailModal({
             </p>
             {p.email ? <DetailRow label="Email">{p.email}</DetailRow> : null}
             {p.secondaryEmail ? <DetailRow label="Secondary email">{p.secondaryEmail}</DetailRow> : null}
+            {p.pennGrad === true ? (
+              <DetailRow label="Penn grad">Yes (UPenn — outreach score includes a fixed bonus)</DetailRow>
+            ) : null}
             {p.linkedinUrl ? <LinkRow label="LinkedIn" href={p.linkedinUrl} /> : null}
             {p.alumniUrl ? <LinkRow label="Alumni" href={p.alumniUrl} /> : null}
             {p.directoryProfileUrl ? <LinkRow label="Directory profile" href={p.directoryProfileUrl} /> : null}

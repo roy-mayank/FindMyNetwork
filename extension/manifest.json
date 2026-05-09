@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "FindMyNetwork capture",
+  "version": "0.1.1",
+  "description": "Snapshot the current web page into your FindMyNetwork capture inbox (generic + YC hints).",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Save page to FindMyNetwork"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["extract-core.js", "content-capture.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

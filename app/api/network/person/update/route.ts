@@ -27,6 +27,7 @@ const personUpdateSchema = z.object({
   lastOutreachAt: z.string().optional().or(z.literal("")),
   lastAttemptAt: z.string().optional().or(z.literal("")),
   connectionThrough: z.string().optional().or(z.literal("")),
+  pennGrad: z.boolean().optional(),
 });
 
 const trimOrUndefined = (value?: string) => {
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
           ...(input.lastAttemptAt !== undefined
             ? { lastAttemptAt: trimOrNull(input.lastAttemptAt) }
             : {}),
+          ...(input.pennGrad !== undefined ? { pennGrad: input.pennGrad } : {}),
         },
       ],
       deleteEdgeIds,

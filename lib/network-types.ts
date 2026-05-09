@@ -63,6 +63,8 @@ export type PersonNetworkNode = BaseNetworkNode & {
   /** 0–100 from LLM + cited hiring artifacts (payload) */
   internationalHiringScore?: number;
   hiringSignalsSummary?: string;
+  /** UPenn graduate — adds a fixed outreach score bump (not toggleable). */
+  pennGrad?: boolean;
 };
 
 export type EmailDraft = {

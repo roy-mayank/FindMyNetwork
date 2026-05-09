@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>FindMyNetwork capture</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 36rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        color: #18181b;
+      }
+      label {
+        display: block;
+        font-weight: 600;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+      }
+      input[type="text"],
+      input[type="password"] {
+        width: 100%;
+        margin-top: 0.35rem;
+        padding: 0.5rem 0.65rem;
+        border: 1px solid #d4d4d8;
+        border-radius: 0.5rem;
+        font-size: 0.9rem;
+      }
+      .hint {
+        font-size: 0.75rem;
+        color: #52525b;
+        margin-top: 0.25rem;
+      }
+      button {
+        margin-top: 1.25rem;
+        padding: 0.55rem 1.1rem;
+        border-radius: 9999px;
+        border: none;
+        font-weight: 700;
+        cursor: pointer;
+        background: linear-gradient(135deg, #0ea5e9, #7c3aed);
+        color: #fff;
+      }
+      #status {
+        margin-top: 1rem;
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>FindMyNetwork capture</h1>
+    <p class="hint">
+      Use the same bearer secret as <code>FINDMYNETWORK_API_SECRET</code> on your Next server. You are
+      responsible for complying with sites you capture from.
+    </p>
+    <label for="baseUrl">App base URL</label>
+    <input id="baseUrl" type="text" autocomplete="url" placeholder="http://localhost:3000" />
+    <div class="hint">No trailing slash. Use your deployed <code>https://…</code> origin here when not on localhost.</div>
+    <label for="token">API token (Bearer)</label>
+    <input id="token" type="password" autocomplete="off" placeholder="FINDMYNETWORK_API_SECRET value" />
+    <label style="display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem">
+      <input id="openInbox" type="checkbox" checked />
+      Open capture inbox tab after toolbar save
+    </label>
+    <button type="button" id="save">Save</button>
+    <p id="status"></p>
+    <script src="options.js"></script>
+  </body>
+</html>

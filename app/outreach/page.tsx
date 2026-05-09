@@ -11,7 +11,8 @@ export default function OutreachPage() {
       description={
         <>
           A ranked list of people to contact next, using an outreach score you can tune. Toggle heuristic
-          factors on or off—disabled factors are left out of the score entirely. Heavier scoring logic is
+          factors on or off—disabled factors are left out of the score entirely. A separate company-focus
+          list above the queue highlights non-startups worth deeper research. Heavier scoring logic is
           still to come; update reach dates from the graph or data collection.
         </>
       }

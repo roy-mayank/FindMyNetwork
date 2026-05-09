@@ -4,12 +4,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { updatePersonReachAction } from "@/app/actions/network";
+import { CompanyFocusCard } from "@/components/outreach/CompanyFocusCard";
 import { OutreachPersonDetailModal } from "@/components/outreach/OutreachPersonDetailModal";
 import { OutreachSessionTimer } from "@/components/outreach/OutreachSessionTimer";
 import { recordOutreachQueueComplete } from "@/lib/outreach-complete-storage";
 import {
   OUTREACH_FACTORS,
   OUTREACH_FACTORS_STORAGE_KEY,
+  OUTREACH_INTRINSIC_LABELS,
+  OUTREACH_INTRINSIC_POINTS,
   allOutreachFactorIds,
   buildOutreachRankRows,
   enabledSetFromDisabled,
@@ -18,6 +21,7 @@ import {
   personOutreachedOnStoredCalendarDay,
   serializeFactorPrefs,
   type OutreachFactorId,
+  type OutreachIntrinsicId,
   type OutreachRankRow,
 } from "@/lib/outreach-heuristic";
 import type { NetworkData } from "@/lib/network-types";
@@ -163,6 +167,10 @@ export function OutreachQueue() {
               );
             })}
           </ul>
+          <p className="mt-2 border-t border-fuchsia-200/50 pt-2 text-[9px] leading-snug text-zinc-500 dark:border-fuchsia-500/25 dark:text-zinc-400">
+            Penn (UPenn) grads: +{OUTREACH_INTRINSIC_POINTS.pennGrad} when marked in data collection
+            — always included, not toggled here.
+          </p>
         </section>
       </aside>
 
@@ -211,6 +219,8 @@ export function OutreachQueue() {
         </div>
       </div>
 
+      <CompanyFocusCard data={data} />
+
       <section className="rounded-2xl border border-zinc-200/80 bg-white/80 dark:border-zinc-700/80 dark:bg-zinc-900/60">
         <div className="border-b border-zinc-200/80 px-4 py-3 dark:border-zinc-700/80">
           <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Who to reach next</h2>
@@ -248,7 +258,7 @@ export function OutreachQueue() {
                         {row.primaryEmployer.label}
                       </p>
                     ) : null}
-                    <BreakdownChips breakdown={row.breakdown} />
+                    <BreakdownChips breakdown={row.breakdown} intrinsic={row.intrinsic} />
                     <p className="mt-2 text-[11px] font-medium text-violet-600 dark:text-violet-400">
                       View details →
                     </p>
@@ -279,14 +289,31 @@ export function OutreachQueue() {
 
 function BreakdownChips({
   breakdown,
+  intrinsic,
 }: {
   breakdown: Partial<Record<OutreachFactorId, number | null>>;
+  intrinsic: Partial<Record<OutreachIntrinsicId, number>>;
 }) {
   const ids = allOutreachFactorIds().filter((id) => id in breakdown);
-  if (ids.length === 0) return null;
+  const intrinsicIds = (Object.keys(intrinsic) as OutreachIntrinsicId[]).filter(
+    (id) => typeof intrinsic[id] === "number",
+  );
+  if (ids.length === 0 && intrinsicIds.length === 0) return null;
 
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
+      {intrinsicIds.map((id) => {
+        const v = intrinsic[id];
+        return (
+          <span
+            key={id}
+            className="inline-flex rounded-full border border-violet-200/80 bg-violet-50/90 px-2 py-0.5 text-[10px] font-medium text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-200"
+          >
+            {OUTREACH_INTRINSIC_LABELS[id]}
+            {typeof v === "number" ? `: ${v}` : ""}
+          </span>
+        );
+      })}
       {ids.map((id) => {
         const v = breakdown[id];
         const label =
