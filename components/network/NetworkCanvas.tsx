@@ -16,7 +16,12 @@ import {
 } from "@xyflow/react";
 
 import { buildReactFlowElements } from "@/lib/graph-layout";
-import type { ClusterGroupBy, FlowNodePayload, NetworkData } from "@/lib/network-types";
+import type {
+  ClusterGroupBy,
+  FlowNodePayload,
+  NetworkData,
+  NetworkNode,
+} from "@/lib/network-types";
 import { GraphNode } from "@/components/network/nodes/GraphNode";
 import { PersonModal } from "@/components/network/PersonModal";
 
@@ -32,6 +37,12 @@ type NetworkCanvasProps = {
   onNetworkUpdated?: () => void;
   clustered: boolean;
   groupBy: ClusterGroupBy;
+  /**
+   * Intercept clicks on person / company nodes. Return `true` to suppress the
+   * default modal (e.g. when navigating to the lists tab instead). Other node
+   * kinds (`me`, `entity`, `cluster`) always open the modal.
+   */
+  onNodeFocus?: (node: NetworkNode) => boolean;
 };
 
 export function NetworkCanvas({
@@ -39,6 +50,7 @@ export function NetworkCanvas({
   onNetworkUpdated,
   clustered,
   groupBy,
+  onNodeFocus,
 }: NetworkCanvasProps) {
   const built = useMemo(
     () => buildReactFlowElements(data, { clustered, groupBy }),
@@ -55,9 +67,19 @@ export function NetworkCanvas({
 
   const [selected, setSelected] = useState<FlowNodePayload | null>(null);
 
-  const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
-    setSelected(node.data as FlowNodePayload);
-  }, []);
+  const onNodeClick: NodeMouseHandler = useCallback(
+    (_, node) => {
+      const payload = node.data as FlowNodePayload;
+      if (
+        onNodeFocus &&
+        (payload.kind === "person" || payload.kind === "company")
+      ) {
+        if (onNodeFocus(payload as NetworkNode)) return;
+      }
+      setSelected(payload);
+    },
+    [onNodeFocus],
+  );
 
   return (
     <div className="relative h-[min(78vh,820px)] w-full min-h-[480px] overflow-hidden rounded-3xl border-2 border-amber-200/70 bg-gradient-to-b from-white/95 to-sky-50/40 shadow-xl shadow-amber-200/20 ring-1 ring-white/50 dark:border-violet-500/30 dark:from-zinc-900/90 dark:to-violet-950/40 dark:shadow-violet-950/30 dark:ring-violet-500/10">

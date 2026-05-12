@@ -110,6 +110,10 @@ function rowToNetworkNode(
     const startupRaw = payload.startupStatus;
     const startupStatus =
       startupRaw === "startup" || startupRaw === "established" ? startupRaw : undefined;
+    const country =
+      typeof payload.country === "string" && payload.country.trim().length > 0
+        ? payload.country.trim()
+        : undefined;
     return {
       id: row.id,
       kind: "company",
@@ -120,6 +124,7 @@ function rowToNetworkNode(
       description,
       purposeLikabilityMatch,
       startupStatus,
+      country,
       internationalHiringScore,
       hiringSignalsSummary,
     };

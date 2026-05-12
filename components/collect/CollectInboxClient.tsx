@@ -214,6 +214,7 @@ function CaptureConfirmForm({
     industryPreset: "",
     industryOther: "",
     website: normalizeWebsite(capture.payload.website?.trim() ?? "") ?? "",
+    country: "",
     description: capture.payload.description?.trim() ?? "",
     startupStatus: defaultStartupForCapture(capture.pageKind),
     purposeLikabilityMatch: "",
@@ -253,6 +254,7 @@ function CaptureConfirmForm({
       industry: resolved.industry,
       startupStatus: companyForm.startupStatus,
       website: website || undefined,
+      country: companyForm.country.trim() || undefined,
       description: companyForm.description.trim() || undefined,
       sourceUrl: capture.sourceUrl,
       sourceType: "browser_extension",
@@ -396,6 +398,16 @@ function CaptureConfirmForm({
                 />
               </label>
             ) : null}
+            <label className={labelClass}>
+              Country <span className={optMuted}>(optional)</span>
+              <input
+                value={companyForm.country}
+                onChange={(e) => setCompanyForm((f) => ({ ...f, country: e.target.value }))}
+                className={inputClass}
+                placeholder="e.g. United States, India"
+                autoComplete="country-name"
+              />
+            </label>
             <fieldset className={`sm:col-span-2 ${labelClass} space-y-2 border-0 p-0`}>
               <legend className="mb-1">Startup vs established</legend>
               <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:gap-8">

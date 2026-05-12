@@ -712,7 +712,9 @@ export function PersonModal({
                     ? "Startup vs established"
                     : node.groupBy === "outreach"
                       ? "Outreach recency"
-                      : node.groupBy}
+                      : node.groupBy === "country"
+                        ? "Country"
+                        : node.groupBy}
                 </span>
               </p>
               <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-200">

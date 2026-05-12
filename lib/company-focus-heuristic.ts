@@ -2,7 +2,11 @@ import {
   buildIndustryByCompanyMap,
   industryMatchesPreference,
 } from "@/lib/outreach-heuristic";
+import { isIndiaHqCountry } from "@/lib/company-country";
 import type { CompanyNetworkNode, NetworkData } from "@/lib/network-types";
+
+/** Fixed penalty when company country is India (not a toggleable factor). */
+export const COMPANY_FOCUS_INDIA_HQ_PENALTY = 25;
 
 /** Stable ids for the company-focus heuristic components. */
 export const COMPANY_FOCUS_FACTOR_IDS = [
@@ -272,34 +276,54 @@ export type CompanyFocusRow = {
   peopleCount: number;
   total: number;
   breakdown: Partial<Record<CompanyFocusFactorId, number | null>>;
+  /** Subtracted from factor total when HQ is India; omitted otherwise. */
+  indiaPenalty?: number;
+};
+
+export type BuildCompanyFocusRowsOptions = {
+  /**
+   * When true, every company is scored. Default `false` keeps the historical
+   * "established only" behavior used by the outreach-page CompanyFocusCard.
+   */
+  includeStartups?: boolean;
 };
 
 /**
- * Filters to confirmed non-startup companies (`startupStatus === "established"`),
- * scores each via {@link computeCompanyFocusScore}, and returns rows sorted by
- * score desc with `company.label` ascending as a stable tie-break.
+ * Filters to confirmed non-startup companies (`startupStatus === "established"`)
+ * by default, scores each via {@link computeCompanyFocusScore}, and returns rows
+ * sorted by score desc with `company.label` ascending as a stable tie-break.
+ * Pass `{ includeStartups: true }` to include every company (used by the graph
+ * page list view).
  */
 export function buildCompanyFocusRows(
   network: NetworkData,
   enabled: Set<CompanyFocusFactorId>,
+  options: BuildCompanyFocusRowsOptions = {},
 ): CompanyFocusRow[] {
   const industryByCompany = buildIndustryByCompanyMap(network);
   const peopleByCompany = buildPeopleCountByCompanyMap(network);
-  const companies = network.nodes.filter(
-    (n): n is CompanyNetworkNode =>
-      n.kind === "company" && n.startupStatus === "established",
-  );
+  const companies = network.nodes.filter((n): n is CompanyNetworkNode => {
+    if (n.kind !== "company") return false;
+    if (options.includeStartups) return true;
+    return n.startupStatus === "established";
+  });
 
   const rows: CompanyFocusRow[] = companies.map((company) => {
     const industry = industryByCompany.get(company.id);
     const peopleCount = peopleByCompany.get(company.id) ?? 0;
-    const { total, breakdown } = computeCompanyFocusScore(
+    const { total: factorTotal, breakdown } = computeCompanyFocusScore(
       company,
       industry,
       peopleCount,
       enabled,
     );
-    return { company, industry, peopleCount, total, breakdown };
+    let total = factorTotal;
+    let indiaPenalty: number | undefined;
+    if (isIndiaHqCountry(company.country)) {
+      indiaPenalty = COMPANY_FOCUS_INDIA_HQ_PENALTY;
+      total = Math.max(0, factorTotal - indiaPenalty);
+    }
+    return { company, industry, peopleCount, total, breakdown, indiaPenalty };
   });
 
   rows.sort((a, b) => {

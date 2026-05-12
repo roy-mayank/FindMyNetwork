@@ -1,4 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
+import { countryBucketForCompany } from "@/lib/company-country";
 import {
   assertExactlyOneMeNode,
   DEFAULT_CONNECTION_THROUGH,
@@ -487,6 +488,101 @@ function buildStartupClusterElements(
   return { nodes, edges };
 }
 
+/** Group companies (and their employees) by HQ country. */
+function buildCountryClusterElements(
+  data: NetworkData,
+  positions: Map<string, { x: number; y: number }>,
+): { nodes: Node[]; edges: Edge[] } {
+  const byId = nodeById(data);
+  const companyPeople = companyToPeople(data);
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+  const usedMembers = new Set<string>();
+  const usedAnchors = new Set<string>();
+
+  const membersByKey = new Map<string, { label: string; ids: Set<string> }>();
+  const ensureBucket = (key: string, label: string) => {
+    let b = membersByKey.get(key);
+    if (!b) {
+      b = { label, ids: new Set() };
+      membersByKey.set(key, b);
+    } else if (b.label === "Country not set" && label !== "Country not set") {
+      b.label = label;
+    }
+    return b;
+  };
+
+  for (const n of data.nodes) {
+    if (n.kind !== "company") continue;
+    const { key, label } = countryBucketForCompany(n);
+    const b = ensureBucket(key, label);
+    b.ids.add(n.id);
+    for (const pid of companyPeople.get(n.id) ?? []) b.ids.add(pid);
+  }
+
+  const me = data.nodes.find((x) => x.kind === "me");
+  const mePos = me ? (positions.get(me.id) ?? CENTER) : CENTER;
+  if (me) {
+    nodes.push(toFlowNode(me, mePos));
+    usedAnchors.add(me.id);
+  }
+
+  const activeKeys = [...membersByKey.keys()].filter(
+    (k) => (membersByKey.get(k)?.ids.size ?? 0) > 0,
+  );
+  activeKeys.sort((a, b) => {
+    if (a === "unknown") return 1;
+    if (b === "unknown") return -1;
+    return (membersByKey.get(a)?.label ?? a).localeCompare(
+      membersByKey.get(b)?.label ?? b,
+    );
+  });
+
+  const nBuckets = Math.max(activeKeys.length, 1);
+  const countryRingR = ringRadius(300, nBuckets, MIN_CHORD_CLUSTER);
+  let idx = 0;
+  for (const key of activeKeys) {
+    const bucket = membersByKey.get(key)!;
+    const memberIds = [...bucket.ids];
+    memberIds.forEach((id) => usedMembers.add(id));
+    const cluster = clusterNode("country", key, bucket.label, memberIds, byId);
+    const angle = -Math.PI / 2 + (2 * Math.PI * idx) / nBuckets;
+    nodes.push(
+      toFlowNode(cluster, {
+        x: mePos.x + countryRingR * Math.cos(angle),
+        y: mePos.y + countryRingR * Math.sin(angle),
+      }),
+    );
+    if (me) {
+      edges.push({
+        id: `e-${me.id}-${cluster.id}`,
+        source: me.id,
+        target: cluster.id,
+        animated: false,
+      });
+    }
+    idx += 1;
+  }
+
+  for (const n of data.nodes) {
+    if (n.kind === "me") continue;
+    if (usedAnchors.has(n.id) || usedMembers.has(n.id)) continue;
+    nodes.push(toFlowNode(n, positions.get(n.id) ?? CENTER));
+  }
+
+  for (const e of data.edges) {
+    if (usedMembers.has(e.source) || usedMembers.has(e.target)) continue;
+    edges.push({
+      id: `e-${e.source}-${e.target}`,
+      source: e.source,
+      target: e.target,
+      animated: false,
+    });
+  }
+
+  return { nodes, edges };
+}
+
 function buildClusteredElements(
   data: NetworkData,
   groupBy: ClusterGroupBy,
@@ -495,6 +591,7 @@ function buildClusteredElements(
   if (groupBy === "industry") return buildIndustryClusterElements(data, positions);
   if (groupBy === "company") return buildCompanyClusterElements(data, positions);
   if (groupBy === "startup") return buildStartupClusterElements(data, positions);
+  if (groupBy === "country") return buildCountryClusterElements(data, positions);
   return buildOutreachClusterElements(data, positions);
 }
 

@@ -19,6 +19,7 @@ export function networkNodeToStorage(n: NetworkNode): {
       payload.purposeLikabilityMatch = n.purposeLikabilityMatch;
     }
     if (n.startupStatus) payload.startupStatus = n.startupStatus;
+    if (n.country) payload.country = n.country;
     if (typeof n.internationalHiringScore === "number") {
       payload.internationalHiringScore = n.internationalHiringScore;
     }

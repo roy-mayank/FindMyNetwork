@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   COMPANY_FOCUS_FACTORS,
   COMPANY_FOCUS_FACTORS_STORAGE_KEY,
+  COMPANY_FOCUS_INDIA_HQ_PENALTY,
   allCompanyFocusFactorIds,
   buildCompanyFocusRows,
   enabledSetFromDisabledCompanyFocus,
@@ -14,6 +15,7 @@ import {
   type CompanyFocusFactorId,
   type CompanyFocusRow,
 } from "@/lib/company-focus-heuristic";
+import { countryBucketForCompany } from "@/lib/company-country";
 import type { NetworkData } from "@/lib/network-types";
 
 const TOP_N = 5;
@@ -31,6 +33,7 @@ export function CompanyFocusCard({ data }: { data: NetworkData | null }) {
   );
   const [expanded, setExpanded] = useState(false);
   const [tuneOpen, setTuneOpen] = useState(false);
+  const [countryFilterKey, setCountryFilterKey] = useState("");
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
@@ -46,10 +49,31 @@ export function CompanyFocusCard({ data }: { data: NetworkData | null }) {
     [disabled],
   );
 
-  const rows = useMemo(
+  const allRows = useMemo(
     () => (data ? buildCompanyFocusRows(data, enabled) : []),
     [data, enabled],
   );
+
+  const countryOptions = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const row of allRows) {
+      const { key, label } = countryBucketForCompany(row.company);
+      if (!m.has(key)) m.set(key, label);
+    }
+    const entries = [...m.entries()].sort((a, b) => {
+      if (a[0] === "unknown") return 1;
+      if (b[0] === "unknown") return -1;
+      return a[1].localeCompare(b[1]);
+    });
+    return entries;
+  }, [allRows]);
+
+  const rows = useMemo(() => {
+    if (!countryFilterKey) return allRows;
+    return allRows.filter(
+      (row) => countryBucketForCompany(row.company).key === countryFilterKey,
+    );
+  }, [allRows, countryFilterKey]);
 
   const visible = expanded ? rows : rows.slice(0, TOP_N);
 
@@ -89,9 +113,27 @@ export function CompanyFocusCard({ data }: { data: NetworkData | null }) {
           </h2>
           <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
             Established companies ranked by their own heuristic — handy for
-            picking what to research next.
+            picking what to research next. India HQ applies a fixed −
+            {COMPANY_FOCUS_INDIA_HQ_PENALTY} score penalty (not controlled by
+            factor toggles).
           </p>
         </div>
+        <div className="flex shrink-0 flex-col items-end gap-2 sm:flex-row sm:items-start">
+          <label className="flex flex-col items-end gap-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-200/90">
+            Country
+            <select
+              value={countryFilterKey}
+              onChange={(e) => setCountryFilterKey(e.target.value)}
+              className="max-w-[11rem] rounded-lg border border-amber-300/80 bg-white px-2 py-1.5 text-[11px] font-medium normal-case text-zinc-900 shadow-inner dark:border-amber-500/40 dark:bg-zinc-950 dark:text-zinc-100"
+            >
+              <option value="">All</option>
+              {countryOptions.map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         <button
           type="button"
           onClick={() => setTuneOpen((v) => !v)}
@@ -100,6 +142,7 @@ export function CompanyFocusCard({ data }: { data: NetworkData | null }) {
         >
           {tuneOpen ? "Hide tune" : "Tune"}
         </button>
+        </div>
       </header>
 
       {tuneOpen ? (
@@ -146,10 +189,15 @@ export function CompanyFocusCard({ data }: { data: NetworkData | null }) {
         </div>
       ) : null}
 
-      {rows.length === 0 ? (
+      {allRows.length === 0 ? (
         <p className="px-4 py-6 text-center text-xs text-zinc-600 dark:text-zinc-400">
           No established companies yet. Mark companies as non-startup in data
           collection to populate this list.
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="px-4 py-6 text-center text-xs text-zinc-600 dark:text-zinc-400">
+          No companies match this country filter. Choose &quot;All&quot; or pick
+          another country.
         </p>
       ) : (
         <>
@@ -192,12 +240,15 @@ function CompanyRow({ row, rank }: { row: CompanyFocusRow; rank: number }) {
             </p>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
               {row.industry ? <span>{row.industry}</span> : null}
+              {row.company.country?.trim() ? (
+                <span>{countryBucketForCompany(row.company).label}</span>
+              ) : null}
               <span>
                 {row.peopleCount} {row.peopleCount === 1 ? "person" : "people"}{" "}
                 linked
               </span>
             </div>
-            <CompanyBreakdownChips breakdown={row.breakdown} />
+            <CompanyBreakdownChips breakdown={row.breakdown} indiaPenalty={row.indiaPenalty} />
           </div>
         </div>
         <div className="shrink-0 text-right">
@@ -215,13 +266,20 @@ function CompanyRow({ row, rank }: { row: CompanyFocusRow; rank: number }) {
 
 function CompanyBreakdownChips({
   breakdown,
+  indiaPenalty,
 }: {
   breakdown: Partial<Record<CompanyFocusFactorId, number | null>>;
+  indiaPenalty?: number;
 }) {
   const ids = allCompanyFocusFactorIds().filter((id) => id in breakdown);
-  if (ids.length === 0) return null;
+  if (ids.length === 0 && indiaPenalty == null) return null;
   return (
     <div className="mt-1.5 flex flex-wrap gap-1">
+      {typeof indiaPenalty === "number" ? (
+        <span className="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-900 dark:bg-rose-950/60 dark:text-rose-200">
+          India HQ: −{indiaPenalty}
+        </span>
+      ) : null}
       {ids.map((id) => {
         const v = breakdown[id];
         const label =

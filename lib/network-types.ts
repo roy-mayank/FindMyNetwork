@@ -2,7 +2,12 @@
 export const DEFAULT_CONNECTION_THROUGH = "Cold approach";
 
 export type NodeKind = "me" | "entity" | "company" | "person";
-export type ClusterGroupBy = "industry" | "company" | "outreach" | "startup";
+export type ClusterGroupBy =
+  | "industry"
+  | "company"
+  | "outreach"
+  | "startup"
+  | "country";
 
 /** Used for scoring and graph clustering (startup vs mature org). */
 export type CompanyStartupStatus = "startup" | "established";
@@ -34,6 +39,8 @@ export type CompanyNetworkNode = BaseNetworkNode & {
   purposeLikabilityMatch?: number;
   /** Whether the company behaves like a startup for scoring / clustering */
   startupStatus?: CompanyStartupStatus;
+  /** HQ / registration country (free text; used for clustering and filters) */
+  country?: string;
   /** 0–100 from LLM + cited hiring artifacts (payload) */
   internationalHiringScore?: number;
   hiringSignalsSummary?: string;

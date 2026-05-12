@@ -19,6 +19,7 @@ export const sampleNetwork: NetworkData = {
       kind: "company",
       subtitle: "Current team",
       startupStatus: "established",
+      country: "United States",
     },
     {
       id: "co-2",

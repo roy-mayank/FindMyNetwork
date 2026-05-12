@@ -21,6 +21,7 @@ export const companyInputSchema = baseManualSchema.extend({
   subtitle: z.string().optional(),
   website: z.string().url("Website must be a valid URL").optional().or(z.literal("")),
   startupStatus: z.enum(["startup", "established"]).optional(),
+  country: z.string().optional(),
   purposeLikabilityMatch: z.coerce.number().int().min(1).max(5).optional(),
   description: z.string().optional(),
   connectToId: z.string().min(1).optional(),
@@ -107,6 +108,7 @@ export async function createManualCompany(
           website: trimOrUndefined(input.website),
           description: trimOrUndefined(input.description),
           startupStatus: input.startupStatus ?? "established",
+          country: trimOrUndefined(input.country),
           ...(typeof input.purposeLikabilityMatch === "number"
             ? { purposeLikabilityMatch: input.purposeLikabilityMatch }
             : {}),

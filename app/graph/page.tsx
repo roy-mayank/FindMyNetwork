@@ -4,7 +4,29 @@ import { NetworkGlyph } from "@/components/layout/AppLogo";
 import { JoyShell, joyTitleClassName } from "@/components/layout/JoyShell";
 import { NetworkHome } from "@/components/network/NetworkHome";
 
-export default function GraphPage() {
+type GraphSearchParams = {
+  view?: string | string[];
+  listTab?: string | string[];
+  focus?: string | string[];
+};
+
+function pickString(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
+export default async function GraphPage({
+  searchParams,
+}: {
+  searchParams: Promise<GraphSearchParams>;
+}) {
+  const sp = await searchParams;
+  const rawView = pickString(sp.view);
+  const rawListTab = pickString(sp.listTab);
+  const focusId = pickString(sp.focus);
+  const initialView = rawView === "lists" ? "lists" : "graph";
+  const initialListTab = rawListTab === "companies" ? "companies" : "people";
+
   return (
     <JoyShell
       eyebrow="Your network map"
@@ -18,8 +40,8 @@ export default function GraphPage() {
         <>
           <p>
             You sit in the center; universities and companies branch out; people cluster on companies.
-            Pan and zoom the graph, click any node for details—people include LinkedIn and alumni links
-            when stored in the database, plus enrichment actions for Series A/B startup context.
+            Switch between the live graph and ranked lists; clicking any node in the graph jumps to its
+            row in the lists tab.
           </p>
           <p className="mt-3">
             The graph is loaded from the local SQLite API. Run{" "}
@@ -63,7 +85,11 @@ export default function GraphPage() {
         </>
       }
     >
-      <NetworkHome />
+      <NetworkHome
+        initialView={initialView}
+        initialListTab={initialListTab}
+        initialFocusId={focusId}
+      />
     </JoyShell>
   );
 }

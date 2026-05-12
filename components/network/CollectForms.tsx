@@ -74,6 +74,7 @@ function emptyCompanyForm() {
     industryPreset: "",
     industryOther: "",
     website: "",
+    country: "",
     purposeLikabilityMatch: "",
     description: "",
     startupStatus: "startup" as CompanyStartupStatus,
@@ -360,6 +361,7 @@ export function CollectForms() {
                 industry: resolved.industry,
                 startupStatus: companyForm.startupStatus,
                 website: companyForm.website.trim() || undefined,
+                country: companyForm.country.trim() || undefined,
                 description: companyForm.description.trim() || undefined,
               };
               if (
@@ -534,10 +536,20 @@ export function CollectForms() {
                 />
               </label>
             ) : null}
+            <label className={labelClass}>
+              Country <span className={optMuted}>(optional)</span>
+              <input
+                value={companyForm.country}
+                onChange={(e) => setCompanyForm((f) => ({ ...f, country: e.target.value }))}
+                className={inputClass}
+                placeholder="e.g. United States, India, Germany"
+                autoComplete="country-name"
+              />
+            </label>
             <fieldset className={`sm:col-span-2 ${labelClass} space-y-2 border-0 p-0`}>
               <legend className="mb-0.5">Startup vs established</legend>
               <p className="mb-2 text-[11px] font-normal normal-case leading-snug text-zinc-600 dark:text-zinc-400">
-                Used for future scoring and for the &quot;Startup vs established&quot; graph cluster.
+                Used for future scoring and for the &quot;Startup vs established&quot; and &quot;Country&quot; graph clusters.
               </p>
               <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:gap-8">
                 <label className="flex cursor-pointer items-center gap-2 text-sm font-medium normal-case text-zinc-800 dark:text-zinc-200">
