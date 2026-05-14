@@ -3,11 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  INDUSTRY_OTHER_VALUE,
-  INDUSTRY_PRESET_LABELS,
-  resolveIndustryFromForm,
-} from "@/lib/industry-options";
-import {
   careershiftContactsSearchUrl,
   linkedinCompanySearchUrl,
 } from "@/lib/external-search-urls";
@@ -71,8 +66,6 @@ function connectionThroughForPersonEdge(
 function emptyCompanyForm() {
   return {
     label: "",
-    industryPreset: "",
-    industryOther: "",
     website: "",
     country: "",
     purposeLikabilityMatch: "",
@@ -324,8 +317,7 @@ export function CollectForms() {
         >
         <h2 className="text-lg font-bold text-sky-900 dark:text-sky-100">Add company</h2>
         <p className="mt-1 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
-          Choose a standard industry (reduces duplicate entity labels on the graph) or pick Other. Add identity,
-          optional site, a quick "do we vibe?" score, and space for a fun fact.
+          Add identity, optional site, a quick &quot;do we vibe?&quot; score, and space for a fun fact.
         </p>
         {companyFlash ? (
           <p
@@ -343,22 +335,12 @@ export function CollectForms() {
             setCompanyErr(null);
             setCompanyFlash(false);
             try {
-              const resolved = resolveIndustryFromForm(
-                companyForm.industryPreset,
-                companyForm.industryOther,
-              );
-              if ("error" in resolved) {
-                setCompanyErr(resolved.error);
-                setCompanyBusy(false);
-                return;
-              }
               const matchRaw = companyForm.purposeLikabilityMatch.trim();
               const purposeLikabilityMatch =
                 matchRaw === "" ? undefined : Number.parseInt(matchRaw, 10);
               const body: Record<string, unknown> = {
                 kind: "company",
                 label: companyForm.label,
-                industry: resolved.industry,
                 startupStatus: companyForm.startupStatus,
                 website: companyForm.website.trim() || undefined,
                 country: companyForm.country.trim() || undefined,
@@ -498,44 +480,6 @@ export function CollectForms() {
                 </div>
               ) : null}
             </div>
-            <label className={labelClass}>
-              Industry
-              <select
-                required
-                value={companyForm.industryPreset}
-                onChange={(e) =>
-                  setCompanyForm((f) => ({
-                    ...f,
-                    industryPreset: e.target.value,
-                    ...(e.target.value !== INDUSTRY_OTHER_VALUE ? { industryOther: "" } : {}),
-                  }))
-                }
-                className={inputClass}
-              >
-                <option value="">Select industry…</option>
-                {INDUSTRY_PRESET_LABELS.map((label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ))}
-                <option value={INDUSTRY_OTHER_VALUE}>Other (specify)</option>
-              </select>
-            </label>
-            {companyForm.industryPreset === INDUSTRY_OTHER_VALUE ? (
-              <label className={`sm:col-span-2 ${labelClass}`}>
-                Industry (custom)
-                <input
-                  required
-                  value={companyForm.industryOther}
-                  onChange={(e) =>
-                    setCompanyForm((f) => ({ ...f, industryOther: e.target.value }))
-                  }
-                  className={inputClass}
-                  placeholder='Short label, e.g. "Space tourism"'
-                  autoComplete="off"
-                />
-              </label>
-            ) : null}
             <label className={labelClass}>
               Country <span className={optMuted}>(optional)</span>
               <input

@@ -4,11 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 
-import {
-  INDUSTRY_OTHER_VALUE,
-  INDUSTRY_PRESET_LABELS,
-  resolveIndustryFromForm,
-} from "@/lib/industry-options";
 import type { CapturePayload } from "@/lib/pending-capture-ingest";
 import {
   DEFAULT_CONNECTION_THROUGH,
@@ -211,8 +206,6 @@ function CaptureConfirmForm({
 
   const [companyForm, setCompanyForm] = useState({
     label: capture.payload.label?.trim() ?? "",
-    industryPreset: "",
-    industryOther: "",
     website: normalizeWebsite(capture.payload.website?.trim() ?? "") ?? "",
     country: "",
     description: capture.payload.description?.trim() ?? "",
@@ -239,11 +232,6 @@ function CaptureConfirmForm({
 
   const submitCompany = async () => {
     setLocalErr(null);
-    const resolved = resolveIndustryFromForm(companyForm.industryPreset, companyForm.industryOther);
-    if ("error" in resolved) {
-      setLocalErr(resolved.error);
-      return;
-    }
     const matchRaw = companyForm.purposeLikabilityMatch.trim();
     const purposeLikabilityMatch =
       matchRaw === "" ? undefined : Number.parseInt(matchRaw, 10);
@@ -251,7 +239,6 @@ function CaptureConfirmForm({
     const body: Record<string, unknown> = {
       kind: "company",
       label: companyForm.label.trim(),
-      industry: resolved.industry,
       startupStatus: companyForm.startupStatus,
       website: website || undefined,
       country: companyForm.country.trim() || undefined,
@@ -362,42 +349,6 @@ function CaptureConfirmForm({
                 className={inputClass}
               />
             </label>
-            <label className={labelClass}>
-              Industry
-              <select
-                required
-                value={companyForm.industryPreset}
-                onChange={(e) =>
-                  setCompanyForm((f) => ({
-                    ...f,
-                    industryPreset: e.target.value,
-                    ...(e.target.value !== INDUSTRY_OTHER_VALUE ? { industryOther: "" } : {}),
-                  }))
-                }
-                className={inputClass}
-              >
-                <option value="">Select industry…</option>
-                {INDUSTRY_PRESET_LABELS.map((label) => (
-                  <option key={label} value={label}>
-                    {label}
-                  </option>
-                ))}
-                <option value={INDUSTRY_OTHER_VALUE}>Other (specify)</option>
-              </select>
-            </label>
-            {companyForm.industryPreset === INDUSTRY_OTHER_VALUE ? (
-              <label className={`sm:col-span-2 ${labelClass}`}>
-                Industry (custom)
-                <input
-                  required
-                  value={companyForm.industryOther}
-                  onChange={(e) =>
-                    setCompanyForm((f) => ({ ...f, industryOther: e.target.value }))
-                  }
-                  className={inputClass}
-                />
-              </label>
-            ) : null}
             <label className={labelClass}>
               Country <span className={optMuted}>(optional)</span>
               <input

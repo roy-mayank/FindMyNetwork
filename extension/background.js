@@ -8,19 +8,72 @@ async function getSettings() {
   return { baseUrl, token, openInbox };
 }
 
+function targetAddressSpaceForUrl(urlString) {
+  let host;
+  try {
+    host = new URL(urlString).hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+  } catch {
+    return undefined;
+  }
+
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1") {
+    return "loopback";
+  }
+
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (match) {
+    const octets = match.slice(1).map((part) => Number(part));
+    if (octets.every((part) => part <= 255)) {
+      const [a, b] = octets;
+      if (a === 127) return "loopback";
+      if (a === 10) return "local";
+      if (a === 172 && b >= 16 && b <= 31) return "local";
+      if (a === 192 && b === 168) return "local";
+      if (a === 169 && b === 254) return "local";
+    }
+  }
+
+  if (host.endsWith(".local")) {
+    return "local";
+  }
+
+  return undefined;
+}
+
+function unreachableAppMessage(baseUrl) {
+  return `Could not reach ${baseUrl}. Check that Next.js is running, the extension options base URL and API token match FINDMYNETWORK_API_SECRET, and allow local network access for this extension if Chrome prompts.`;
+}
+
 async function sendCapture(body) {
   const { baseUrl, token } = await getSettings();
   if (!token) {
     throw new Error("Set API token in extension options (same value as FINDMYNETWORK_API_SECRET).");
   }
-  const res = await fetch(`${baseUrl}/api/captures`, {
+
+  const requestInit = {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
-  });
+  };
+  const targetAddressSpace = targetAddressSpaceForUrl(baseUrl);
+  if (targetAddressSpace) {
+    requestInit.targetAddressSpace = targetAddressSpace;
+  }
+
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/captures`, requestInit);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg === "Failed to fetch") {
+      throw new Error(unreachableAppMessage(baseUrl));
+    }
+    throw e;
+  }
+
   const text = await res.text();
   if (!res.ok) {
     throw new Error(text || `HTTP ${res.status}`);

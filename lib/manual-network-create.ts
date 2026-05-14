@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { z } from "zod";
 
@@ -17,7 +17,6 @@ export const baseManualSchema = z.object({
 
 export const companyInputSchema = baseManualSchema.extend({
   kind: z.literal("company"),
-  industry: z.string().min(1, "Industry is required"),
   subtitle: z.string().optional(),
   website: z.string().url("Website must be a valid URL").optional().or(z.literal("")),
   startupStatus: z.enum(["startup", "established"]).optional(),
@@ -80,25 +79,8 @@ export async function createManualCompany(
   input: z.infer<typeof companyInputSchema>,
 ): Promise<{ id: string }> {
   const nodeId = buildNodeId("co");
-  const industryLabel = input.industry.trim();
-  const [existingIndustry] = await db
-    .select({ id: nodes.id })
-    .from(nodes)
-    .where(and(eq(nodes.kind, "entity"), eq(nodes.label, industryLabel)))
-    .limit(1);
-  const industryId = existingIndustry?.id ?? buildNodeId("ent");
   applyNetworkPatch(db, {
     nodes: [
-      ...(existingIndustry
-        ? []
-        : [
-            {
-              id: industryId,
-              kind: "entity" as const,
-              label: industryLabel,
-              payload: {},
-            },
-          ]),
       {
         id: nodeId,
         kind: "company",
@@ -122,10 +104,6 @@ export async function createManualCompany(
     edges: [
       {
         source: input.connectToId ?? "me",
-        target: industryId,
-      },
-      {
-        source: industryId,
         target: nodeId,
       },
     ],

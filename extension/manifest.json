@@ -1,10 +1,15 @@
 {
   "manifest_version": 3,
   "name": "FindMyNetwork capture",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Snapshot the current web page into your FindMyNetwork capture inbox (generic + YC hints).",
   "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": ["http://*/*", "https://*/*"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://*/*",
+    "https://*/*"
+  ],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
